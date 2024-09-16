@@ -26,6 +26,7 @@ public class FieldUtils {
       case "bool":
       case "boolean":
         return Types.BOOLEAN;
+      case "timestamp":
       case "timestamp_ntz":
         return Types.LOCAL_DATE_TIME;
       case "date":
@@ -52,13 +53,14 @@ public class FieldUtils {
       case "bool":
       case "boolean":
         return DataTypes.BOOLEAN();
+      case "timestamp":
       case "timestamp_ntz":
         return DataTypes.TIMESTAMP(6);
       case "date":
         return DataTypes.DATE();
       default:
         if (dataType.startsWith("decimal")) {
-          String precisions = dataType.trim().replace("decimal(","").replace(")","");
+          String precisions = dataType.trim().replace("decimal(", "").replace(")", "");
           String[] split = precisions.split(",");
           return DataTypes.DECIMAL(Integer.valueOf(split[0]), Integer.valueOf(split[1]));
         } else {
