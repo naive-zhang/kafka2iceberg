@@ -26,7 +26,7 @@ public class FieldUtils {
       case "bool":
       case "boolean":
         return Types.BOOLEAN;
-      case "tiemstamp_ntz":
+      case "timestamp_ntz":
         return Types.LOCAL_DATE_TIME;
       case "date":
         return Types.LOCAL_DATE;
