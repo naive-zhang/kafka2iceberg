@@ -2,6 +2,7 @@ package com.fishsun.bigdata.flink;
 
 import com.fishsun.bigdata.utils.HiveSchemaUtils;
 import com.fishsun.bigdata.utils.KafkaUtils;
+import com.fishsun.bigdata.utils.ParamUtils;
 import com.fishsun.bigdata.utils.StreamUtils;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -15,7 +16,6 @@ import org.apache.iceberg.flink.sink.FlinkSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +69,7 @@ public class Kafka2IcebergApp {
             paramMap.get(HIVE_CATALOG_NS_NAME),
             paramMap.get(HIVE_CATALOG_TBL_NAME),
             null,
-            Arrays.asList("did", "dt")
+            ParamUtils.getPrimaryKeys(paramMap)
     );
     List<String> uniqueCols = new LinkedList<>();
     if (tableSchema.getPrimaryKey().isPresent()) {

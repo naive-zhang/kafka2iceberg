@@ -18,14 +18,13 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_NS_NAME;
 import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
-import static com.fishsun.bigdata.utils.ParamUtils.filterTableSchemaConfig;
-import static com.fishsun.bigdata.utils.ParamUtils.parseTypeInformation;
 
 /**
  * Created by IntelliJ IDEA.
@@ -41,6 +40,7 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
   private final String[] fieldNames;
   private final TypeInformation<?>[] fieldTypes;
   private final Map<String, String> colWithRef;
+  private final TypeInformation<Row> flinkTypeInformation;
   private Set<String> notNullColSet;
   private String database;
   private String table;
@@ -61,7 +61,7 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
     HiveSchemaUtils schemaUtil = HiveSchemaUtils.buildFromParamMap(
             paramMap
     );
-    TypeInformation<Row> flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
+    flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
             paramMap.get(HIVE_CATALOG_NS_NAME),
             paramMap.get(HIVE_CATALOG_TBL_NAME)
     );
@@ -70,6 +70,7 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
     schemaUtil.close();
     colWithRef = ParamUtils.getColWithRef(paramMap);
     List<String> notNullableCols = ParamUtils.getNotNullableCols(paramMap);
+    notNullColSet = new HashSet<>();
     notNullColSet.addAll(notNullableCols);
   }
 
@@ -81,7 +82,7 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
   public TypeInformation<Row> getProducedType() {
 
     // 解析定义好的类型
-    return parseTypeInformation(paramMap);
+    return flinkTypeInformation;
   }
 
 
@@ -136,7 +137,6 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
 
     // 获取 data 数组
     JsonNode dataArray = jsonNode.get("data");
-    Map<Integer, Map<String, String>> seq2fieldInfo = filterTableSchemaConfig(paramMap);
 
     if (dataArray != null && dataArray.isArray()) {
       for (JsonNode dataNode : dataArray) {
@@ -148,7 +148,13 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
           String key = ref.substring(5);
           if (dataNode.has(key)) {
             JsonNode node = dataNode.get(key);
-            if (typeInformation.equals(Types.STRING)) {
+            if (node.asText().trim().equalsIgnoreCase("null")) {
+              if (notNullColSet.contains(fieldName)) {
+                throw new IllegalArgumentException(fieldName + " should not be null, " + jsonNode);
+              } else {
+                row.setField(i, null);
+              }
+            } else if (typeInformation.equals(Types.STRING)) {
               row.setField(i, node.asText());
             } else if (typeInformation.equals(Types.LONG)) {
               row.setField(i, node.asLong());
@@ -166,14 +172,14 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
           } else if (fieldName.trim().equalsIgnoreCase("is_cdc_delete")) {
             row.setField(i, isCdcDelete);
           } else if (fieldName.trim().equalsIgnoreCase("offset")) {
-            row.setField(i, 0);
+            row.setField(i, offset);
           } else if (fieldName.trim().equalsIgnoreCase("partition_idx")) {
-            row.setField(i, 0);
+            row.setField(i, partitionIdx);
           } else if (fieldName.trim().equalsIgnoreCase("ts")) {
             row.setField(i, jsonNode.get("ts").asLong());
           } else if (fieldName.trim().equalsIgnoreCase("es")) {
             row.setField(i, jsonNode.get("es").asLong());
-          } else if (fieldName.trim().equalsIgnoreCase("CommitTs")) {
+          } else if (fieldName.trim().equalsIgnoreCase("CommitTs") || fieldName.trim().equalsIgnoreCase("commit_ts")) {
             row.setField(i, jsonNode.get("CommitTs").asLong());
           } else if (!notNullColSet.contains(fieldName)) {
             row.setField(i, null);
@@ -184,11 +190,6 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
         out.collect(row);
       }
     }
-  }
-
-  // 辅助方法：解析时间字符串为 Timestamp
-  private static Timestamp parseTimestamp(String timeStr) {
-    return Timestamp.valueOf(timeStr);
   }
 
 }

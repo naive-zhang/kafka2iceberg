@@ -25,8 +25,6 @@ import java.util.Set;
 
 import static com.fishsun.bigdata.utils.FieldUtils.fieldType2dataType;
 import static com.fishsun.bigdata.utils.FieldUtils.fieldType2typeInformation;
-import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_NS_NAME;
-import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
 import static com.fishsun.bigdata.utils.ParamUtils.ICEBERG_URI_KEY;
 
 /**
@@ -39,7 +37,6 @@ import static com.fishsun.bigdata.utils.ParamUtils.ICEBERG_URI_KEY;
 public class HiveSchemaUtils {
 
   /**
-   *
    * @param paramMap
    * @return
    */
@@ -148,11 +145,14 @@ public class HiveSchemaUtils {
             notnullFieldList,
             primaryKeys
     );
-    return TableSchema.fromResolvedSchema(resolvedSchema);
+    TableSchema tableSchema = TableSchema.fromResolvedSchema(resolvedSchema);
+    System.out.println(tableSchema);
+    return tableSchema;
   }
 
   /**
    * 将字段名字和TypeInformation映射起来
+   *
    * @param databaseName
    * @param tableName
    * @return
@@ -168,6 +168,7 @@ public class HiveSchemaUtils {
     for (FieldSchema fieldSchema : tableSchema) {
       fieldName2typeInfo.put(fieldSchema.getName(), fieldType2typeInformation(fieldSchema.getType()));
     }
+    System.out.println(fieldName2typeInfo);
     return fieldName2typeInfo;
   }
 
@@ -201,6 +202,7 @@ public class HiveSchemaUtils {
       fieldTypes[i] = typeInformationList.get(i);
     }
     RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes, fieldNames);
+    System.out.println(rowTypeInfo);
     return rowTypeInfo;
   }
 

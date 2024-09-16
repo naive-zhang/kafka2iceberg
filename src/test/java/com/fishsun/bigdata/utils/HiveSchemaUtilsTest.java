@@ -1,7 +1,9 @@
 package com.fishsun.bigdata.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -80,6 +82,17 @@ public class HiveSchemaUtilsTest {
             Arrays.asList("bid", "dt")
     );
     System.out.println(resolvedSchema);
+  }
+
+
+  @Test
+  public void testToFlinkTableSchema() throws TException {
+    TableSchema tableSchema = schemaUtil.toFlinkTableSchema(
+            DATABASE_NAME, TABLE_NAME,
+            null,
+            Arrays.asList("bid", "dt")
+    );
+    System.out.println(tableSchema);
   }
 
   @Test
