@@ -24,6 +24,8 @@ import java.util.Map;
  */
 public class HiveSchemaUtilsTest {
   private static HiveSchemaUtils schemaUtil = null;
+  private static final String DATABASE_NAME = "test";
+  private static final String TABLE_NAME = "t_busi_detail_flink_2";
 
   @BeforeAll
   public static void setup() throws MetaException {
@@ -42,7 +44,7 @@ public class HiveSchemaUtilsTest {
   @Test
   public void testGetTableSchema() {
     try {
-      List<FieldSchema> schema = schemaUtil.getTableSchema("test", "t_busi_detail_flink_2");
+      List<FieldSchema> schema = schemaUtil.getTableSchema(DATABASE_NAME, TABLE_NAME);
 
       for (FieldSchema field : schema) {
         System.out.println("Column Name: " + field.getName());
@@ -60,7 +62,7 @@ public class HiveSchemaUtilsTest {
   @Test
   public void testGetTableParameters() {
     try {
-      Map<String, String> tableParameters = schemaUtil.getTableParameters("test", "t_busi_detail_flink_2");
+      Map<String, String> tableParameters = schemaUtil.getTableParameters(DATABASE_NAME, TABLE_NAME);
 //      System.out.println(schema);
       for (Map.Entry<String, String> kvSet : tableParameters.entrySet()) {
         System.out.println(String.format("%s  : %s", kvSet.getKey(), kvSet.getValue()));
@@ -73,7 +75,7 @@ public class HiveSchemaUtilsTest {
   @Test
   public void testToFlinkResolvedSchema() throws TException {
     ResolvedSchema resolvedSchema = schemaUtil.toFlinkResolvedSchema(
-            "test", "t_busi_detail_flink_2",
+            DATABASE_NAME, TABLE_NAME,
             null,
             Arrays.asList("bid", "dt")
     );
@@ -83,8 +85,16 @@ public class HiveSchemaUtilsTest {
   @Test
   public void testToFlinkTypeInformation() throws TException {
     TypeInformation<Row> flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
-            "test", "t_busi_detail_flink_2"
+            DATABASE_NAME, TABLE_NAME
     );
     System.out.println(flinkTypeInformation);
+  }
+
+  @Test
+  public void testToFlinkFieldName2typeInformation() throws TException {
+    Map<String, TypeInformation<?>> flinkFieldName2typeInformation = schemaUtil.toFlinkFieldName2typeInformation(DATABASE_NAME, TABLE_NAME);
+    for (Map.Entry<String, TypeInformation<?>> name2type : flinkFieldName2typeInformation.entrySet()) {
+      System.out.println(name2type.getKey() + "   :    " + name2type.getValue());
+    }
   }
 }

@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static com.fishsun.bigdata.utils.ParamUtils.CATALOG_TYPE_KEY;
 import static com.fishsun.bigdata.utils.ParamUtils.HADOOP_CATALOG;
+import static com.fishsun.bigdata.utils.ParamUtils.HIVE_CATALOG;
 import static com.fishsun.bigdata.utils.ParamUtils.ICEBERG_TABLE_LOCATION;
 import static com.fishsun.bigdata.utils.ParamUtils.getHadoopConf;
 import static com.fishsun.bigdata.utils.ParamUtils.getIcebergProps;
@@ -73,7 +74,7 @@ public class IcebergUtils {
   }
 
   public static TableLoader getTableLoader(Map<String, String> paramMap) {
-    if (paramMap.getOrDefault(CATALOG_TYPE_KEY, HADOOP_CATALOG).equals(HADOOP_CATALOG)) {
+    if (paramMap.getOrDefault(CATALOG_TYPE_KEY, HIVE_CATALOG).equals(HADOOP_CATALOG)) {
       return hadoopLoader(
               paramMap.get(ICEBERG_TABLE_LOCATION),
               getHadoopConf(paramMap)
