@@ -3,6 +3,7 @@ package com.fishsun.bigdata;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fishsun.bigdata.utils.DateTimeUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
@@ -12,9 +13,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Map;
 
@@ -137,9 +136,9 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
             } else if (typeInformation.equals(Types.BIG_DEC)) {
               row.setField(i, new BigDecimal(node.asText()));
             } else if (typeInformation.equals(Types.LOCAL_DATE_TIME)) {
-              row.setField(i, parseTimestamp(node.asText()).toLocalDateTime());
+              row.setField(i, DateTimeUtils.parseStringToLocalDateTime(node.asText()));
             } else if (typeInformation.equals(Types.LOCAL_TIME)) {
-              row.setField(i, new Date(parseTimestamp(node.asText()).getTime()).toLocalDate());
+              row.setField(i, DateTimeUtils.parseString2localDate(node.asText()));
             }
           } else if (fieldName.trim().equalsIgnoreCase("is_cdc_delete")) {
             row.setField(i, isCdcDelete);
