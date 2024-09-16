@@ -1,6 +1,6 @@
 package com.fishsun.bigdata.utils;
 
-import com.fishsun.bigdata.flink.Kafka2IcebergApp;
+import com.fishsun.bigdata.DeserializedSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.types.Row;
 
@@ -35,7 +35,7 @@ public class KafkaUtils {
             .setTopics(topicList)
             .setGroupId(group)
             .setStartingOffsets(org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer.earliest())
-            .setDeserializer(new Kafka2IcebergApp.CustomCanalDeserializationSchema())
+            .setDeserializer(new DeserializedSchema(paramMap))
             .build();
   }
 

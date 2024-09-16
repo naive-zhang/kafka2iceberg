@@ -1,18 +1,9 @@
 package com.fishsun.bigdata.utils;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fishsun.bigdata.dao.IcebergFieldParams;
-import com.fishsun.bigdata.expression.ExpressionNode;
-import com.fishsun.bigdata.expression.ExpressionType;
-import com.fishsun.bigdata.field.FieldType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.types.Row;
-
-import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.util.List;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.DataType;
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,90 +13,60 @@ import java.util.List;
  * @Desc :
  */
 public class FieldUtils {
-  public static TypeInformation fieldType2typeInformation(FieldType fieldType) {
-    switch (fieldType) {
-      case BOOL:
-        return Types.BOOLEAN;
-      case INT:
-        return Types.INT;
-      case BIGINT:
-        return Types.BIG_INT;
-      case DECIMAL:
-        return Types.BIG_DEC;
-      case STRING:
+  public static TypeInformation fieldType2typeInformation(String dataType) {
+    switch (dataType) {
+      case "string":
         return Types.STRING;
-      case TIMESTAMP_NTZ:
+      case "bigint":
+      case "long":
+        return Types.LONG;
+      case "tinyint":
+      case "int":
+        return Types.INT;
+      case "bool":
+      case "boolean":
+        return Types.BOOLEAN;
+      case "tiemstamp_ntz":
         return Types.LOCAL_DATE_TIME;
-      case DATE:
+      case "date":
         return Types.LOCAL_DATE;
-    }
-    throw new IllegalArgumentException("unknown field type");
-  }
-
-  /**
-   * 对多棵树进行合并
-   * 并且合并成一颗层次遍历的数据
-   * @param expressionNodeList
-   */
-  public static void mergeTrees(List<ExpressionNode> expressionNodeList) {
-
-  }
-
-  /**
-   * 组装行对象
-   *
-   * @param row
-   * @param icebergFieldParams
-   * @param jsonNode
-   */
-  public static void setupRow(Row row, IcebergFieldParams icebergFieldParams, JsonNode jsonNode) {
-    ExpressionNode expressionNode = ExpressionUtils.parseTree(icebergFieldParams.getNodeExpression());
-    JsonNode leftLeafNode = parseLeafVal(expressionNode, jsonNode);
-    if (expressionNode.getExpressionType() == ExpressionType.EQUAL) {
-      boolean isEquals = leftLeafNode.asText().trim().equalsIgnoreCase(expressionNode.getRightExpressionNode().getOperator().trim());
-      if (icebergFieldParams.fieldType == FieldType.BOOL) {
-        row.setField(icebergFieldParams.getFieldSeq(), isEquals);
-      } else {
-        // 0-1的int来代替bool
-        row.setField(icebergFieldParams.getFieldSeq(), isEquals ? 1 : 0);
-      }
-      return;
-    }
-    switch (icebergFieldParams.fieldType) {
-      case BOOL:
-        row.setField(icebergFieldParams.getFieldSeq(), leftLeafNode.asBoolean());
-      case INT:
-        row.setField(icebergFieldParams.getFieldSeq(), leftLeafNode.asInt());
-      case BIGINT:
-        row.setField(icebergFieldParams.getFieldSeq(), leftLeafNode.asLong());
-      case DECIMAL:
-        row.setField(icebergFieldParams.getFieldSeq(), new BigDecimal(leftLeafNode.asText()));
-      case STRING:
-        row.setField(icebergFieldParams.getFieldSeq(), leftLeafNode.asText());
-      case TIMESTAMP_NTZ:
-        row.setField(icebergFieldParams.getFieldSeq(), Timestamp.valueOf(leftLeafNode.asText()).toLocalDateTime());
-      case DATE:
-        row.setField(icebergFieldParams.getFieldSeq(), new Date(Timestamp.valueOf(leftLeafNode.asText()).getTime()).toLocalDate());
       default:
-        row.setField(icebergFieldParams.getFieldSeq(), leftLeafNode.asText());
+        if (dataType.startsWith("decimal")) {
+          return Types.BIG_DEC;
+        } else {
+          return Types.STRING;
+        }
     }
   }
 
-  /**
-   * 解析叶子节点的值
-   *
-   * @param expressionNode
-   * @param jsonNode
-   * @return
-   */
-  private static JsonNode parseLeafVal(ExpressionNode expressionNode, JsonNode jsonNode) {
-    if (expressionNode == null) return null;
-    String key = expressionNode.getOperator().substring(2);
-    if (expressionNode.getLeftExpressionNode() == null) {
-      return jsonNode.get(key);
+  public static DataType fieldType2dataType(String dataType) {
+    switch (dataType) {
+      case "string":
+        return DataTypes.STRING();
+      case "bigint":
+      case "long":
+        return DataTypes.BIGINT();
+      case "tinyint":
+      case "int":
+        return DataTypes.INT();
+      case "bool":
+      case "boolean":
+        return DataTypes.BOOLEAN();
+      case "timestamp_ntz":
+        return DataTypes.TIMESTAMP(6);
+      case "date":
+        return DataTypes.DATE();
+      default:
+        if (dataType.startsWith("decimal")) {
+          String precisions = dataType.trim().replace("decimal(","").replace(")","");
+          String[] split = precisions.split(",");
+          return DataTypes.DECIMAL(Integer.valueOf(split[0]), Integer.valueOf(split[1]));
+        } else {
+          return DataTypes.STRING();
+        }
     }
-    return parseLeafVal(expressionNode.getLeftExpressionNode(), jsonNode.get(key));
   }
+
 
   public static void main(String[] args) {
     String a = "1232";
