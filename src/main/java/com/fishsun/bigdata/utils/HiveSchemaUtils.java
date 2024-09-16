@@ -16,6 +16,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.thrift.TException;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Set;
 
 import static com.fishsun.bigdata.utils.FieldUtils.fieldType2dataType;
 import static com.fishsun.bigdata.utils.FieldUtils.fieldType2typeInformation;
+import static com.fishsun.bigdata.utils.ParamUtils.ICEBERG_URI_KEY;
 
 /**
  * Created by IntelliJ IDEA.
@@ -33,6 +35,17 @@ import static com.fishsun.bigdata.utils.FieldUtils.fieldType2typeInformation;
  * @Desc :
  */
 public class HiveSchemaUtils {
+
+  /**
+   * @param paramMap
+   * @return
+   */
+  public static HiveSchemaUtils buildFromParamMap(Map<String, String> paramMap) throws MetaException {
+    String thriftUri = paramMap.get(ICEBERG_URI_KEY);
+    Configuration hadoopConf = new Configuration();
+    hadoopConf.set("hive.metastore.uris", thriftUri);
+    return new HiveSchemaUtils(hadoopConf);
+  }
 
   private IMetaStoreClient client;
 
@@ -132,11 +145,36 @@ public class HiveSchemaUtils {
             notnullFieldList,
             primaryKeys
     );
-    return TableSchema.fromResolvedSchema(resolvedSchema);
+    TableSchema tableSchema = TableSchema.fromResolvedSchema(resolvedSchema);
+    System.out.println(tableSchema);
+    return tableSchema;
+  }
+
+  /**
+   * 将字段名字和TypeInformation映射起来
+   *
+   * @param databaseName
+   * @param tableName
+   * @return
+   * @throws TException
+   */
+  public Map<String, TypeInformation<?>> toFlinkFieldName2typeInformation(
+          String databaseName,
+          String tableName
+  ) throws TException {
+    Map<String, TypeInformation<?>> fieldName2typeInfo = new HashMap<>();
+    // 先获得hive表的schema
+    List<FieldSchema> tableSchema = getTableSchema(databaseName, tableName);
+    for (FieldSchema fieldSchema : tableSchema) {
+      fieldName2typeInfo.put(fieldSchema.getName(), fieldType2typeInformation(fieldSchema.getType()));
+    }
+    System.out.println(fieldName2typeInfo);
+    return fieldName2typeInfo;
   }
 
   /**
    * 将某个存储在hive catalog里的表转化成TypeInformation
+   *
    * @param databaseName
    * @param tableName
    * @return
@@ -164,6 +202,7 @@ public class HiveSchemaUtils {
       fieldTypes[i] = typeInformationList.get(i);
     }
     RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes, fieldNames);
+    System.out.println(rowTypeInfo);
     return rowTypeInfo;
   }
 

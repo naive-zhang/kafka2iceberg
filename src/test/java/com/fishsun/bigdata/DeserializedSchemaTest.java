@@ -1,5 +1,6 @@
 package com.fishsun.bigdata;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fishsun.bigdata.utils.DateTimeUtils;
@@ -8,16 +9,13 @@ import com.fishsun.bigdata.utils.ParamUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.thrift.TException;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.sql.Timestamp;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,107 +28,68 @@ import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
  * Created by IntelliJ IDEA.
  *
  * @Author : zhangxinsen
- * @create : 2024/9/15 0:30
+ * @create : 2024/9/16 18:59
  * @Desc :
  */
+public class DeserializedSchemaTest {
+  private static final String argString = "iceberg.catalog.type=hive iceberg.uri=thrift://localhost:9083 hive.catalog.name=hive_iceberg hive.namespace.name=test hive.table.name=t_busi_detail_flink_2 bootstrap.servers=kafka:9092 topics=example group.id=flink-group source-database=test source-table=t_busi_detail fields.bid.is_primary_key=true fields.dt.is_primary_key=true fields.dt.ref=data.create_time";
+  private static String[] args;
+  private static Map<String, String> paramMap;
 
-public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row> {
+  private static final String insertRecord = "{\"data\":[{\"bid\":\"135189\",\"user_id\":\"1\",\"goods_id\":\"1\",\"goods_cnt\":\"1\",\"fee\":\"100.0\",\"collection_time\":\"2024-09-16 11:05:34\",\"order_time\":\"2024-09-16 11:05:34\",\"is_valid\":\"1\",\"create_time\":\"2024-09-16 11:05:34\",\"update_time\":\"2024-09-16 11:05:34\"}],\"database\":\"test\",\"es\":1726484734000,\"id\":15393,\"isDdl\":false,\"mysqlType\":{\"bid\":\"bigint(20)\",\"user_id\":\"int(11)\",\"goods_id\":\"int(11)\",\"goods_cnt\":\"int(11)\",\"fee\":\"decimal(16,4)\",\"collection_time\":\"datetime\",\"order_time\":\"datetime\",\"is_valid\":\"int(11)\",\"create_time\":\"datetime\",\"update_time\":\"datetime\"},\"old\":null,\"pkNames\":[\"bid\"],\"sql\":\"\",\"sqlType\":{\"bid\":-5,\"user_id\":4,\"goods_id\":4,\"goods_cnt\":4,\"fee\":3,\"collection_time\":93,\"order_time\":93,\"is_valid\":4,\"create_time\":93,\"update_time\":93},\"table\":\"t_busi_detail\",\"ts\":1726484734647,\"type\":\"INSERT\"}";
 
-  private final Map<String, String> paramMap;
-  private final String[] fieldNames;
-  private final TypeInformation<?>[] fieldTypes;
-  private final Map<String, String> colWithRef;
-  private final TypeInformation<Row> flinkTypeInformation;
-  private Set<String> notNullColSet;
-  private String database;
-  private String table;
+  @BeforeAll
+  public static void setup() {
+    args = argString.split("\\s+");
+    paramMap = ParamUtils.parseConfig(args);
+    ParamUtils.enhanceConfig(paramMap);
+  }
 
-
-  public DeserializedSchema(
-          Map<String, String> paramMap
-  ) throws TException {
-    this.paramMap = paramMap;
-    if (this.paramMap.containsKey("source-database")) {
-      database = this.paramMap.get("source-database");
-      System.out.println("kafka canal database: " + database);
-    }
-    if (this.paramMap.containsKey("source-table")) {
-      table = this.paramMap.get("source-table");
-      System.out.println("kafka canal table: " + table);
-    }
+  @Test
+  public void testGetName2typeInfo() throws TException {
     HiveSchemaUtils schemaUtil = HiveSchemaUtils.buildFromParamMap(
             paramMap
     );
-    flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
+    Map<String, TypeInformation<?>> name2typeInfo = schemaUtil.toFlinkFieldName2typeInformation(
             paramMap.get(HIVE_CATALOG_NS_NAME),
             paramMap.get(HIVE_CATALOG_TBL_NAME)
     );
-    fieldNames = ((RowTypeInfo) flinkTypeInformation).getFieldNames();
-    fieldTypes = ((RowTypeInfo) flinkTypeInformation).getFieldTypes();
+    for (Map.Entry<String, TypeInformation<?>> name2typeEntry : name2typeInfo.entrySet()) {
+      System.out.println(String.format("%s:%s", name2typeEntry.getKey(), name2typeEntry.getValue()));
+    }
     schemaUtil.close();
-    colWithRef = ParamUtils.getColWithRef(paramMap);
+  }
+
+  @Test
+  public void deserializedRow() throws TException, JsonProcessingException {
+    HiveSchemaUtils schemaUtil = HiveSchemaUtils.buildFromParamMap(
+            paramMap
+    );
+    TypeInformation<Row> flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
+            paramMap.get(HIVE_CATALOG_NS_NAME),
+            paramMap.get(HIVE_CATALOG_TBL_NAME)
+    );
+    String[] fieldNames = ((RowTypeInfo) flinkTypeInformation).getFieldNames();
+    TypeInformation<?>[] fieldTypes = ((RowTypeInfo) flinkTypeInformation).getFieldTypes();
+    schemaUtil.close();
+    Map<String, String> colWithRef = ParamUtils.getColWithRef(paramMap);
     List<String> notNullableCols = ParamUtils.getNotNullableCols(paramMap);
-    notNullColSet = new HashSet<>();
+    Set<String> notNullColSet = new HashSet();
     notNullColSet.addAll(notNullableCols);
-  }
+    ObjectMapper objectMapper = new ObjectMapper();
 
-  private static final long serialVersionUID = 1L;
-
-  private final ObjectMapper objectMapper = new ObjectMapper();
-
-  @Override
-  public TypeInformation<Row> getProducedType() {
-
-    // 解析定义好的类型
-    return flinkTypeInformation;
-  }
-
-
-  @Override
-  public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<Row> out) throws IOException {
-    byte[] value = record.value();
+    byte[] value = insertRecord.getBytes(StandardCharsets.UTF_8);
     if (value == null) {
       return;
+    }
+
+    for (int i = 0; i < fieldNames.length; i++) {
+      System.out.println(String.format("%d col %s with type %s", i+1, fieldNames[i], fieldTypes[i]));
     }
 
     // 解析 Canal-JSON 消息
     String jsonString = new String(value, StandardCharsets.UTF_8);
     JsonNode jsonNode = objectMapper.readTree(jsonString);
-    // 判断当前消息是否属于相应的数据
-    if (this.database == null || this.table == null) {
-      throw new IllegalArgumentException("canal-kafka source database or table not config");
-    }
-
-    // 忽略非当前表的cdc数据
-    if (!jsonNode.get("database").asText().equals(database) || !jsonNode.get("table").asText().equals(table)) {
-      return;
-    }
-    // 忽略查询的内容
-    if (jsonNode.get("type").asText().trim().equalsIgnoreCase("query")) {
-//      System.out.println("not hit");
-      return;
-    }
-    System.out.println("数据被命中");
-    if (jsonNode.get("isDdl").asText().trim().equalsIgnoreCase("true")) {
-      // TODO 判断此处的内容如何处理
-    }
-
-
-    setupRow(
-            out,
-            jsonNode,
-            record.offset(),
-            record.partition(),
-            paramMap
-    );
-  }
-
-
-  public void setupRow(Collector<Row> out,
-                       JsonNode jsonNode,
-                       Long offset,
-                       int partitionIdx,
-                       Map<String, String> paramMap) {
     // 获得相应的数据类型
     String type = jsonNode.get("type").asText();
     boolean isCdcDelete = "DELETE".equalsIgnoreCase(type);
@@ -148,13 +107,7 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
           String key = ref.substring(5);
           if (dataNode.has(key)) {
             JsonNode node = dataNode.get(key);
-            if (node.asText().trim().equalsIgnoreCase("null")) {
-              if (notNullColSet.contains(fieldName)) {
-                throw new IllegalArgumentException(fieldName + " should not be null, " + jsonNode);
-              } else {
-                row.setField(i, null);
-              }
-            } else if (typeInformation.equals(Types.STRING)) {
+            if (typeInformation.equals(Types.STRING)) {
               row.setField(i, node.asText());
             } else if (typeInformation.equals(Types.LONG)) {
               row.setField(i, node.asLong());
@@ -172,14 +125,14 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
           } else if (fieldName.trim().equalsIgnoreCase("is_cdc_delete")) {
             row.setField(i, isCdcDelete);
           } else if (fieldName.trim().equalsIgnoreCase("offset")) {
-            row.setField(i, offset);
+            row.setField(i, 0);
           } else if (fieldName.trim().equalsIgnoreCase("partition_idx")) {
-            row.setField(i, partitionIdx);
+            row.setField(i, 0);
           } else if (fieldName.trim().equalsIgnoreCase("ts")) {
             row.setField(i, jsonNode.get("ts").asLong());
           } else if (fieldName.trim().equalsIgnoreCase("es")) {
             row.setField(i, jsonNode.get("es").asLong());
-          } else if (fieldName.trim().equalsIgnoreCase("CommitTs") || fieldName.trim().equalsIgnoreCase("commit_ts")) {
+          } else if (fieldName.trim().equalsIgnoreCase("CommitTs")) {
             row.setField(i, jsonNode.get("CommitTs").asLong());
           } else if (!notNullColSet.contains(fieldName)) {
             row.setField(i, null);
@@ -187,9 +140,8 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
             throw new IllegalArgumentException("field " + fieldName + ", json not got it with ref " + key + ", and it's not nullable");
           }
         }
-        out.collect(row);
+        System.out.println(row);
       }
     }
   }
-
 }

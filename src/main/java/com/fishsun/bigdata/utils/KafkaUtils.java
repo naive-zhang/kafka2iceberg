@@ -3,6 +3,7 @@ package com.fishsun.bigdata.utils;
 import com.fishsun.bigdata.DeserializedSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.types.Row;
+import org.apache.thrift.TException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.Map;
  * @Desc :
  */
 public class KafkaUtils {
-  public static KafkaSource<Row> getKafkaSource(Map<String, String> paramMap) {
+  public static KafkaSource<Row> getKafkaSource(Map<String, String> paramMap) throws TException {
     String bootstrapServers = paramMap.getOrDefault(
             "bootstrap.servers",
             "kafka:9092"

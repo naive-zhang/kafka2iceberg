@@ -1,6 +1,8 @@
 package com.fishsun.bigdata.flink;
 
+import com.fishsun.bigdata.utils.HiveSchemaUtils;
 import com.fishsun.bigdata.utils.KafkaUtils;
+import com.fishsun.bigdata.utils.ParamUtils;
 import com.fishsun.bigdata.utils.StreamUtils;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -18,10 +20,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_NS_NAME;
+import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
 import static com.fishsun.bigdata.utils.IcebergUtils.getTableLoader;
 import static com.fishsun.bigdata.utils.ParamUtils.enhanceConfig;
 import static com.fishsun.bigdata.utils.ParamUtils.parseConfig;
-import static com.fishsun.bigdata.utils.ParamUtils.parseTableSchema;
 
 /**
  * Created by IntelliJ IDEA.
@@ -42,11 +45,10 @@ public class Kafka2IcebergApp {
     StreamExecutionEnvironment env =
             StreamUtils.getStreamEnv(paramMap);
 
-    // 2. 配置 Kafka Source
-    // bootstrap.servers配置kafka
-    // topics配置topic
-    // group.id配置group
-
+    // 2. 初始化HiveSchemaUtils
+    HiveSchemaUtils hiveSchemaUtils = HiveSchemaUtils.buildFromParamMap(
+            paramMap
+    );
 
     // 3. 从 Kafka 读取数据
     logger.info("kafka source initializing");
@@ -63,8 +65,11 @@ public class Kafka2IcebergApp {
     logger.info("kafka source init finished");
     System.out.println("kafka source init finished");
     // 4. 定义 Iceberg 表的 TableSchema
-    TableSchema tableSchema = parseTableSchema(
-            paramMap
+    TableSchema tableSchema = hiveSchemaUtils.toFlinkTableSchema(
+            paramMap.get(HIVE_CATALOG_NS_NAME),
+            paramMap.get(HIVE_CATALOG_TBL_NAME),
+            null,
+            ParamUtils.getPrimaryKeys(paramMap)
     );
     List<String> uniqueCols = new LinkedList<>();
     if (tableSchema.getPrimaryKey().isPresent()) {

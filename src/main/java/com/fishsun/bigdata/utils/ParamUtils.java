@@ -46,6 +46,13 @@ public class ParamUtils {
 
   public static final String ICEBERG_HIVE_CATALOG_VALUE = "hive";
 
+
+  /**
+   * 解析传入的参数
+   *
+   * @param args
+   * @return
+   */
   public static Map<String, String> parseConfig(String[] args) {
     Map<String, String> paramMap = new HashMap<>();
     for (String arg : args) {
@@ -61,7 +68,7 @@ public class ParamUtils {
         }
         String paramVal = String.join("=", paramValList);
         if (paramVal.endsWith("'") || paramName.endsWith("\"")) {
-          paramVal = paramVal.substring(0, paramVal.length()-1);
+          paramVal = paramVal.substring(0, paramVal.length() - 1);
         }
         paramMap.put(paramName, paramVal);
       }
@@ -123,6 +130,73 @@ public class ParamUtils {
     Configuration hadoopConf = new Configuration();
     hadoopConf.set(DEFAULT_FS_KEY, paramMap.get(DEFAULT_FS_KEY));
     return hadoopConf;
+  }
+
+  /**
+   * 找出 fields.{fieldName}.{promotion} = true的字段或者 = false的字段
+   *
+   * @param paramMap
+   * @param promotion
+   * @param reversed
+   * @return
+   */
+  public static List<String> getFields(Map<String, String> paramMap, String promotion, boolean reversed) {
+    List<String> fields = new LinkedList<>();
+    for (Map.Entry<String, String> kvEntry : paramMap.entrySet()) {
+      if (kvEntry.getKey().startsWith("fields.")
+              && kvEntry.getKey().endsWith(promotion)
+              && kvEntry.getValue().trim().equalsIgnoreCase(reversed ? "false" : "true")) {
+        fields.add(kvEntry.getKey().split("\\.")[1]);
+      }
+    }
+    return fields;
+  }
+
+  /**
+   * 获得需要被设置为主键的列有哪些
+   * fields.bid.is_primary_key = true
+   *
+   * @param paramMap
+   * @return
+   */
+  public static List<String> getPrimaryKeys(Map<String, String> paramMap) {
+    return getFields(
+            paramMap
+            , "is_primary_key"
+            , false
+    );
+  }
+
+  /**
+   * 获得指定的字段的ref
+   * fields.dt.ref = data.create_time ==> dt = date($.data.create_time)
+   *
+   * @param paramMap
+   * @return
+   */
+  public static Map<String, String> getColWithRef(Map<String, String> paramMap) {
+    Map<String, String> colWithRef = new HashMap<>();
+    for (Map.Entry<String, String> kvEntry : paramMap.entrySet()) {
+      if (kvEntry.getKey().startsWith("fields.")
+              && kvEntry.getKey().endsWith(".ref")
+      ) {
+        colWithRef.put(kvEntry.getKey().split("\\.")[1], kvEntry.getValue().trim());
+      }
+    }
+    return colWithRef;
+  }
+
+  /**
+   * fields.bid.is_nullable = false
+   * @param paramMap
+   * @return
+   */
+  public static List<String> getNotNullableCols(Map<String, String> paramMap) {
+    return getFields(
+            paramMap
+            , "is_primary_key"
+            , true
+    );
   }
 
 
