@@ -17,7 +17,7 @@ import org.apache.thrift.TException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.sql.Timestamp;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -166,6 +166,13 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
               row.setField(i, new BigDecimal(node.asText()));
             } else if (typeInformation.equals(Types.LOCAL_DATE_TIME)) {
               row.setField(i, DateTimeUtils.parseStringToLocalDateTime(node.asText()));
+            } else if (typeInformation.equals(Types.INSTANT)) {
+              row.setField(i, DateTimeUtils.parseStringToLocalDateTime(node.asText())
+//                      .atZone(
+//                      ZoneId.of("Asia/Shanghai")
+//              ).toInstant())
+                      .toInstant(ZoneOffset.UTC))
+              ;
             } else if (typeInformation.equals(Types.LOCAL_DATE)) {
               row.setField(i, DateTimeUtils.parseString2localDate(node.asText()));
             }

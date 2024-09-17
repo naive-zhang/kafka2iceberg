@@ -3,13 +3,9 @@ package com.fishsun.bigdata.flink;
 import com.fishsun.bigdata.utils.ApplicationUtils;
 import com.fishsun.bigdata.utils.StreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_NS_NAME;
-import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
 import static com.fishsun.bigdata.utils.ParamUtils.enhanceConfig;
 import static com.fishsun.bigdata.utils.ParamUtils.parseConfig;
 

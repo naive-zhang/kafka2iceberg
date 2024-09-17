@@ -64,22 +64,34 @@ public class IcebergUtils {
     // Iceberg Catalog
     CatalogLoader catalogLoader = CatalogLoader
             .hive(catalogName, hadoopConf, icebergProps);
+    System.out.println("in hiveLoader, catalogLoader init successfully");
+    System.out.println(catalogLoader);
 
     // 定义 Iceberg 表标识
     TableIdentifier tableIdentifier = TableIdentifier.of(namespace,
             tableName);
+    System.out.println("in hiveLoader, tableIdentifier init successfully");
+    System.out.println(tableIdentifier);
 
     // 加载 Iceberg 表
-    return TableLoader.fromCatalog(catalogLoader, tableIdentifier);
+    TableLoader tableLoader = TableLoader.fromCatalog(catalogLoader, tableIdentifier);
+    System.out.println("in hiveLoader, tableLoader init successfully");
+    System.out.println(tableLoader);
+    System.out.println("trying to init Catalog in hiveLoader");
+    tableLoader.open();
+    System.out.println("catalog init successfully");
+    return tableLoader;
   }
 
   public static TableLoader getTableLoader(Map<String, String> paramMap) {
     if (paramMap.getOrDefault(CATALOG_TYPE_KEY, HIVE_CATALOG).equals(HADOOP_CATALOG)) {
+      System.out.println("get table loader with hadoop catalog");
       return hadoopLoader(
               paramMap.get(ICEBERG_TABLE_LOCATION),
               getHadoopConf(paramMap)
       );
     }
+    System.out.println("get table loader with hive catalog");
     return hiveLoader(
             paramMap.getOrDefault(HIVE_CATALOG_NAME, "iceberg_hive"),
             getIcebergProps(paramMap),

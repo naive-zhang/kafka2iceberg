@@ -27,6 +27,7 @@ public class FieldUtils {
       case "boolean":
         return Types.BOOLEAN;
       case "timestamp":
+        return Types.INSTANT;
       case "timestamp_ntz":
         return Types.LOCAL_DATE_TIME;
       case "date":
@@ -54,6 +55,7 @@ public class FieldUtils {
       case "boolean":
         return DataTypes.BOOLEAN();
       case "timestamp":
+        return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6);
       case "timestamp_ntz":
         return DataTypes.TIMESTAMP(6);
       case "date":

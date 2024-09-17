@@ -16,6 +16,9 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -143,5 +146,14 @@ public class DeserializedSchemaTest {
         System.out.println(row);
       }
     }
+  }
+
+  @Test
+  public void testLocalDatetime2Instant() {
+    String tm = "2024-09-10 12:21:14";
+    Instant instant = DateTimeUtils.parseStringToLocalDateTime(tm)
+//            .atZone(ZoneId.of("Asia/Shanghai"))
+            .toInstant(ZoneOffset.UTC);
+    System.out.println(instant);
   }
 }

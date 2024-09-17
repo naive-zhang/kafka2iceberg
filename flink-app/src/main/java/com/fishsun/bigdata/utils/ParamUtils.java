@@ -8,8 +8,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +27,7 @@ import static com.fishsun.bigdata.utils.FieldUtils.fieldType2typeInformation;
  */
 public class ParamUtils {
 
-  private static final Logger logger = LoggerFactory.getLogger(ParamUtils.class);
+//  private static final Logger logger = LoggerFactory.getLogger(ParamUtils.class);
 
   public static final String ICEBERG_TABLE_LOCATION = "iceberg.table.location";
   public static final String CATALOG_TYPE_KEY = "iceberg.catalog.type";
@@ -106,9 +104,9 @@ public class ParamUtils {
     }
 
     System.out.println("expand enhancedParamMap");
-    logger.info("expand enhanced params map");
+//    logger.info("expand enhanced params map");
     for (Map.Entry<String, String> kv : paramMap.entrySet()) {
-      logger.info("config [{}]  : {}", kv.getKey(), kv.getValue());
+//      logger.info("config [{}]  : {}", kv.getKey(), kv.getValue());
     }
   }
 
@@ -188,6 +186,7 @@ public class ParamUtils {
 
   /**
    * fields.bid.is_nullable = false
+   *
    * @param paramMap
    * @return
    */
@@ -284,7 +283,7 @@ public class ParamUtils {
                     primaryKeys.isEmpty() ? null : primaryKey
             )
     );
-    logger.info("parsed table schema: {}", tableSchema.toString());
+//    logger.info("parsed table schema: {}", tableSchema.toString());
     System.out.println(tableSchema.toString());
     return tableSchema;
   }
@@ -310,7 +309,7 @@ public class ParamUtils {
       fieldTypes[i] = typeInformationList.get(i);
     }
     RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes, fieldNames);
-    logger.info("parsed type information: {}", rowTypeInfo.toString());
+//    logger.info("parsed type information: {}", rowTypeInfo.toString());
     System.out.println(rowTypeInfo.toString());
     return rowTypeInfo;
   }
