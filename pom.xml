@@ -12,9 +12,9 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <flink.version>1.19.1</flink.version>
-        <flink.major.version>1.19</flink.major.version>
-        <iceberg.version>1.6.1</iceberg.version>
+        <flink.version>1.17.2</flink.version>
+        <flink.major.version>1.17</flink.major.version>
+        <iceberg.version>1.4.3</iceberg.version>
     </properties>
 
     <dependencies>
@@ -116,7 +116,7 @@
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-connector-kafka</artifactId>
-            <version>3.2.0-${flink.major.version}</version>
+            <version>${flink.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.checkerframework</groupId>
