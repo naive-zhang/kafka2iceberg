@@ -75,7 +75,7 @@ public class ApplicationUtils {
     return tableSchema;
   }
 
-  public static TableLoader setupTableLoader(Map<String, String> paramMap) {
+  public static TableLoader setupTableLoader(Map<String, String> paramMap) throws InterruptedException {
     String hiveTblName = String.format("%s-%s", paramMap.get(HIVE_CATALOG_NS_NAME), paramMap.get(HIVE_CATALOG_TBL_NAME));
     TableLoader tableLoader = getTableLoader(paramMap);
 //    logger.info(hiveTblName + " iceberg table has been loader successfully");
@@ -138,7 +138,7 @@ public class ApplicationUtils {
     System.out.println("sink has been OK");
   }
 
-  public static void setupPipelines(StreamExecutionEnvironment env, Map<String, String> paramMap) throws TException {
+  public static void setupPipelines(StreamExecutionEnvironment env, Map<String, String> paramMap) throws InterruptedException,TException {
     try {
 
 

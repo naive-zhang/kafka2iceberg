@@ -25,89 +25,89 @@ import java.util.Map;
  * @Desc :
  */
 public class HiveSchemaUtilsTest {
-  private static HiveSchemaUtils schemaUtil = null;
-  private static final String DATABASE_NAME = "test";
-  private static final String TABLE_NAME = "t_busi_detail_flink_2";
+    private static HiveSchemaUtils schemaUtil = null;
+    private static final String DATABASE_NAME = "test";
+    private static final String TABLE_NAME = "t_busi_detail_flink_2";
 
-  @BeforeAll
-  public static void setup() throws MetaException {
-    Configuration conf = new Configuration();
-    conf.set("hive.metastore.uris", "thrift://localhost:9083");
-    schemaUtil = new HiveSchemaUtils(conf);
-  }
-
-  @AfterAll
-  public static void teardown() {
-    if (schemaUtil != null) {
-      schemaUtil.close();
+    @BeforeAll
+    public static void setup() throws MetaException {
+        Configuration conf = new Configuration();
+        conf.set("hive.metastore.uris", "thrift://localhost:9083");
+        schemaUtil = new HiveSchemaUtils(conf);
     }
-  }
 
-  @Test
-  public void testGetTableSchema() {
-    try {
-      List<FieldSchema> schema = schemaUtil.getTableSchema(DATABASE_NAME, TABLE_NAME);
-
-      for (FieldSchema field : schema) {
-        System.out.println("Column Name: " + field.getName());
-        System.out.println("Column Type: " + field.getType());
-        System.out.println("Comment: " + field.getComment());
-        System.out.println("------------------------");
-      }
-
-      schemaUtil.close();
-    } catch (Exception e) {
-      e.printStackTrace();
+    @AfterAll
+    public static void teardown() {
+        if (schemaUtil != null) {
+            schemaUtil.close();
+        }
     }
-  }
 
-  @Test
-  public void testGetTableParameters() {
-    try {
-      Map<String, String> tableParameters = schemaUtil.getTableParameters(DATABASE_NAME, TABLE_NAME);
+    @Test
+    public void testGetTableSchema() {
+        try {
+            List<FieldSchema> schema = schemaUtil.getTableSchema(DATABASE_NAME, TABLE_NAME);
+
+            for (FieldSchema field : schema) {
+                System.out.println("Column Name: " + field.getName());
+                System.out.println("Column Type: " + field.getType());
+                System.out.println("Comment: " + field.getComment());
+                System.out.println("------------------------");
+            }
+
+            schemaUtil.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void testGetTableParameters() {
+        try {
+            Map<String, String> tableParameters = schemaUtil.getTableParameters(DATABASE_NAME, TABLE_NAME);
 //      System.out.println(schema);
-      for (Map.Entry<String, String> kvSet : tableParameters.entrySet()) {
-        System.out.println(String.format("%s  : %s", kvSet.getKey(), kvSet.getValue()));
-      }
-    } catch (TException e) {
-      throw new RuntimeException(e);
+            for (Map.Entry<String, String> kvSet : tableParameters.entrySet()) {
+                System.out.println(String.format("%s  : %s", kvSet.getKey(), kvSet.getValue()));
+            }
+        } catch (TException e) {
+            throw new RuntimeException(e);
+        }
     }
-  }
 
-  @Test
-  public void testToFlinkResolvedSchema() throws TException {
-    ResolvedSchema resolvedSchema = schemaUtil.toFlinkResolvedSchema(
-            DATABASE_NAME, TABLE_NAME,
-            null,
-            Arrays.asList("bid", "dt")
-    );
-    System.out.println(resolvedSchema);
-  }
-
-
-  @Test
-  public void testToFlinkTableSchema() throws TException {
-    TableSchema tableSchema = schemaUtil.toFlinkTableSchema(
-            DATABASE_NAME, TABLE_NAME,
-            null,
-            Arrays.asList("bid", "dt")
-    );
-    System.out.println(tableSchema);
-  }
-
-  @Test
-  public void testToFlinkTypeInformation() throws TException {
-    TypeInformation<Row> flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
-            DATABASE_NAME, TABLE_NAME
-    );
-    System.out.println(flinkTypeInformation);
-  }
-
-  @Test
-  public void testToFlinkFieldName2typeInformation() throws TException {
-    Map<String, TypeInformation<?>> flinkFieldName2typeInformation = schemaUtil.toFlinkFieldName2typeInformation(DATABASE_NAME, TABLE_NAME);
-    for (Map.Entry<String, TypeInformation<?>> name2type : flinkFieldName2typeInformation.entrySet()) {
-      System.out.println(name2type.getKey() + "   :    " + name2type.getValue());
+    @Test
+    public void testToFlinkResolvedSchema() throws TException {
+        ResolvedSchema resolvedSchema = schemaUtil.toFlinkResolvedSchema(
+                DATABASE_NAME, TABLE_NAME,
+                null,
+                Arrays.asList("bid", "dt")
+        );
+        System.out.println(resolvedSchema);
     }
-  }
+
+
+    @Test
+    public void testToFlinkTableSchema() throws TException {
+        TableSchema tableSchema = schemaUtil.toFlinkTableSchema(
+                DATABASE_NAME, TABLE_NAME,
+                null,
+                Arrays.asList("bid", "dt")
+        );
+        System.out.println(tableSchema);
+    }
+
+    @Test
+    public void testToFlinkTypeInformation() throws TException {
+        TypeInformation<Row> flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
+                DATABASE_NAME, TABLE_NAME
+        );
+        System.out.println(flinkTypeInformation);
+    }
+
+    @Test
+    public void testToFlinkFieldName2typeInformation() throws TException {
+        Map<String, TypeInformation<?>> flinkFieldName2typeInformation = schemaUtil.toFlinkFieldName2typeInformation(DATABASE_NAME, TABLE_NAME);
+        for (Map.Entry<String, TypeInformation<?>> name2type : flinkFieldName2typeInformation.entrySet()) {
+            System.out.println(name2type.getKey() + "   :    " + name2type.getValue());
+        }
+    }
 }

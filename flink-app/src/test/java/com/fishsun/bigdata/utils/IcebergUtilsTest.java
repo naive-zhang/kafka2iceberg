@@ -20,29 +20,21 @@ import java.util.Map;
  * @Desc :
  */
 public class IcebergUtilsTest {
-  @Test
-  public void testHiveLoader() {
-    Configuration hadoopConf = new Configuration();
-    hadoopConf.set("default.FS", "hdfs://master1:9000");
-    Map<String, String> icebergProps = new HashMap<>();
-    icebergProps.put("uri", "thrift://hive:9083");
-    icebergProps.put("warehouse", "hdfs://master1:9000/user/hive/warehouse");
-    icebergProps.put("catalog-type", "hive");
-    // Iceberg Catalog
-    CatalogLoader catalogLoader = CatalogLoader
-            .hive("iceberg_hive", hadoopConf, icebergProps);
-
-    // 定义 Iceberg 表标识
-    TableIdentifier tableIdentifier = TableIdentifier.of("test",
-            "t_busi_detail_flink_2");
-
-    // 加载 Iceberg 表
-    TableLoader.fromCatalog(catalogLoader, tableIdentifier);
-    TableLoader tableLoader = TableLoader.fromCatalog(catalogLoader, tableIdentifier);
-    tableLoader.open();
-//    Catalog catalog = catalogLoader.loadCatalog();
-//    Table table1 = catalog.loadTable(tableIdentifier);
-    Table table = tableLoader.loadTable();
-    Assertions.assertTrue(tableLoader!=null);
-  }
+    @Test
+    public void testHiveLoader() throws InterruptedException {
+        Configuration hadoopConf = new Configuration();
+        hadoopConf.set("default.FS", "hdfs://master1:9000");
+        Map<String, String> icebergProps = new HashMap<>();
+        icebergProps.put("uri", "thrift://hive:9083");
+        icebergProps.put("warehouse", "hdfs://master1:9000/user/hive/warehouse");
+        icebergProps.put("catalog-type", "hive");
+        TableLoader tableLoader = IcebergUtils.hiveLoader(
+                "iceberg_hive",
+                icebergProps,
+                hadoopConf,
+                "test",
+                "t_busi_detail_flink_2"
+        );
+        System.out.println(tableLoader);
+    }
 }

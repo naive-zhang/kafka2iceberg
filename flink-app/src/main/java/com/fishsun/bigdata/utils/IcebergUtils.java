@@ -1,6 +1,7 @@
 package com.fishsun.bigdata.utils;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.flink.CatalogLoader;
 import org.apache.iceberg.flink.TableLoader;
@@ -59,7 +60,7 @@ public class IcebergUtils {
           Map<String, String> icebergProps,
           Configuration hadoopConf,
           String namespace,
-          String tableName) {
+          String tableName) throws InterruptedException {
 
     // Iceberg Catalog
     CatalogLoader catalogLoader = CatalogLoader
@@ -78,12 +79,26 @@ public class IcebergUtils {
     System.out.println("in hiveLoader, tableLoader init successfully");
     System.out.println(tableLoader);
     System.out.println("trying to init Catalog in hiveLoader");
-    tableLoader.open();
+//    Thread.sleep(1000*60*60*24);
+    try {
+      System.out.println("table open successfully");
+      tableLoader.open();
+      System.out.println("trying to load table");
+      Table table = tableLoader.loadTable();
+      System.out.println(table.name());
+    } catch (Exception e) {
+      System.out.println("some error has been occured");
+      System.out.println("tableLoader open failed");
+      System.out.println(e.getMessage());
+      System.out.println(e.getLocalizedMessage());
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    }
     System.out.println("catalog init successfully");
     return tableLoader;
   }
 
-  public static TableLoader getTableLoader(Map<String, String> paramMap) {
+  public static TableLoader getTableLoader(Map<String, String> paramMap) throws InterruptedException {
     if (paramMap.getOrDefault(CATALOG_TYPE_KEY, HIVE_CATALOG).equals(HADOOP_CATALOG)) {
       System.out.println("get table loader with hadoop catalog");
       return hadoopLoader(
