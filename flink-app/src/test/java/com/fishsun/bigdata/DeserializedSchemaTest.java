@@ -50,7 +50,7 @@ public class DeserializedSchemaTest {
 
   @Test
   public void testGetName2typeInfo() throws TException {
-    HiveSchemaUtils schemaUtil = HiveSchemaUtils.buildFromParamMap(
+    HiveSchemaUtils schemaUtil = HiveSchemaUtils.getInstance(
             paramMap
     );
     Map<String, TypeInformation<?>> name2typeInfo = schemaUtil.toFlinkFieldName2typeInformation(
@@ -65,7 +65,7 @@ public class DeserializedSchemaTest {
 
   @Test
   public void deserializedRow() throws TException, JsonProcessingException {
-    HiveSchemaUtils schemaUtil = HiveSchemaUtils.buildFromParamMap(
+    HiveSchemaUtils schemaUtil = HiveSchemaUtils.getInstance(
             paramMap
     );
     TypeInformation<Row> flinkTypeInformation = schemaUtil.toFlinkTypeInformation(

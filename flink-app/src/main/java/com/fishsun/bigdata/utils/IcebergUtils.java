@@ -1,5 +1,6 @@
 package com.fishsun.bigdata.utils;
 
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;

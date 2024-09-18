@@ -58,7 +58,7 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row>
       table = this.paramMap.get("source-table");
       System.out.println("kafka canal table: " + table);
     }
-    HiveSchemaUtils schemaUtil = HiveSchemaUtils.buildFromParamMap(
+    HiveSchemaUtils schemaUtil = HiveSchemaUtils.getInstance(
             paramMap
     );
     flinkTypeInformation = schemaUtil.toFlinkTypeInformation(

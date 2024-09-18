@@ -59,15 +59,13 @@ public class ApplicationUtils {
   }
 
   public static TableSchema setupTableSchema(Map<String, String> paramMap) throws TException {
-    HiveSchemaUtils hiveSchemaUtils = HiveSchemaUtils.buildFromParamMap(
+    HiveSchemaUtils hiveSchemaUtils = HiveSchemaUtils.getInstance(
             paramMap
     );
     String hiveTblName = String.format("%s-%s", paramMap.get(HIVE_CATALOG_NS_NAME), paramMap.get(HIVE_CATALOG_TBL_NAME));
     TableSchema tableSchema = hiveSchemaUtils.toFlinkTableSchema(
             paramMap.get(HIVE_CATALOG_NS_NAME),
-            paramMap.get(HIVE_CATALOG_TBL_NAME),
-            null,
-            ParamUtils.getPrimaryKeys(paramMap)
+            paramMap.get(HIVE_CATALOG_TBL_NAME)
     );
 //    logger.info(hiveTblName + " table schema has been initialized");
     System.out.println(hiveTblName + " table schema has been initialized");
