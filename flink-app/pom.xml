@@ -335,6 +335,9 @@
                             <!--指定主类为xxxx-->
                             <mainClass>com.fishsun.bigdata.flink.Kafka2IcebergApp</mainClass>
                         </manifest>
+                        <manifestEntries>
+                            <Implementation-Version>${flink.version}</Implementation-Version>
+                        </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>

@@ -1,13 +1,10 @@
 package com.fishsun.bigdata.utils;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.flink.CatalogLoader;
 import org.apache.iceberg.flink.TableLoader;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +17,8 @@ import java.util.Map;
  * @Desc :
  */
 public class IcebergUtilsTest {
+    private static final Logger logger = LoggerFactory.getLogger(IcebergUtilsTest.class);
+
     @Test
     public void testHiveLoader() throws InterruptedException {
         Configuration hadoopConf = new Configuration();
@@ -28,13 +27,7 @@ public class IcebergUtilsTest {
         icebergProps.put("uri", "thrift://hive:9083");
         icebergProps.put("warehouse", "hdfs://master1:9000/user/hive/warehouse");
         icebergProps.put("catalog-type", "hive");
-        TableLoader tableLoader = IcebergUtils.hiveLoader(
-                "iceberg_hive",
-                icebergProps,
-                hadoopConf,
-                "test",
-                "t_busi_detail_flink_2"
-        );
-        System.out.println(tableLoader);
+        TableLoader tableLoader = IcebergUtils.hiveLoader("iceberg_hive", icebergProps, hadoopConf, "test", "t_busi_detail_flink_2");
+        logger.info(tableLoader.toString());
     }
 }

@@ -68,7 +68,10 @@ public class FieldUtils {
                     String precisions = dataType.trim().replace("decimal(", "").replace(")", "");
                     String[] split = precisions.split(",");
                     return DataTypes.DECIMAL(Integer.valueOf(split[0]), Integer.valueOf(split[1]));
-                } else {
+                } else if (dataType.startsWith("timestamp")) {
+                    return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6);
+                }
+                else {
                     return DataTypes.STRING();
                 }
         }
@@ -76,19 +79,23 @@ public class FieldUtils {
 
     /**
      * make the field type as LogicalType
+     *
      * @param dataType
      * @return
      */
-    public static LogicalType fieldType2logicalType(String dataType) {
-        return fieldType2dataType(
+    public static LogicalType fieldType2logicalType(String dataType, boolean isNullable) {
+        if (dataType.trim().equalsIgnoreCase("date")) {
+            return isNullable ? DataTypes.INT().getLogicalType() : DataTypes.INT().notNull().getLogicalType();
+        }
+        return isNullable ? fieldType2dataType(
                 dataType
-        ).getLogicalType();
+        ).getLogicalType() : fieldType2dataType(
+                dataType
+        ).notNull().getLogicalType();
     }
 
-
-    public static void main(String[] args) {
-        String a = "1232";
-        System.out.println(a.substring(2));
+    public static LogicalType fieldType2logicalType(String dataType) {
+        return fieldType2logicalType(dataType, true);
     }
 
 

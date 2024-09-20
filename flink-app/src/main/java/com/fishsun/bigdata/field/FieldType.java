@@ -39,7 +39,4 @@ public enum FieldType {
   }
 
 
-  public static void main(String[] args) {
-    System.out.println(DECIMAL.toString());
-  }
 }

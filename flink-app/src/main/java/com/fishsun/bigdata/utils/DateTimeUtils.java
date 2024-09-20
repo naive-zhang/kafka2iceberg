@@ -2,6 +2,8 @@ package com.fishsun.bigdata.utils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -28,11 +30,14 @@ public class DateTimeUtils {
     return localDateTime.toLocalDate();
   }
 
-  public static void main(String[] args) {
-    String datetime = "2024-09-10 01:00:02";
-    System.out.println(parseStringToLocalDateTime(datetime));
-    System.out.println(parseString2localDate(datetime));
-    datetime = "2024-09-12";
-    System.out.println(parseString2localDate(datetime));
+  public static String getBeijingTimeNow() {
+    // 指定东八区时区（例如：亚洲/上海）
+    ZoneId zoneId = ZoneId.of("Asia/Shanghai");
+    // 获取当前时间
+    ZonedDateTime zonedDateTime = ZonedDateTime.now(zoneId);
+    // 格式化日期时间
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+      // 输出东八区时间
+    return zonedDateTime.format(formatter);
   }
 }

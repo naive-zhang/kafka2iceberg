@@ -108,6 +108,17 @@ public class HiveSchemaUtils implements AutoCloseable {
         return table.getParameters();
     }
 
+    public Set<String> getDateTypeFieldSet(String databaseName, String tableName) throws TException {
+        List<FieldSchema> tableSchema = getTableSchema(
+                databaseName,
+                tableName
+        );
+        return tableSchema.stream()
+                .filter(x -> x.getType().trim().equalsIgnoreCase("date"))
+                .map(FieldSchema::getName)
+                .collect(Collectors.toSet());
+    }
+
     /**
      * 将Hive表的schema转化成Flink的ResolvedSchema，自动获取字段是否为空属性
      *
@@ -219,17 +230,36 @@ public class HiveSchemaUtils implements AutoCloseable {
      */
     public RowType toFlinkRowType(String databaseName, String tableName) throws TException {
         List<FieldSchema> tableSchema = getTableSchema(databaseName, tableName);
-
+        Set<String> notNullColSet = getNotNullColSet(databaseName, tableName);
         List<String> fieldNames = new ArrayList<>();
         List<LogicalType> logicalTypes = new ArrayList<>();
         for (FieldSchema fieldSchema : tableSchema) {
             fieldNames.add(fieldSchema.getName());
-            logicalTypes.add(FieldUtils.fieldType2logicalType(fieldSchema.getType()));
+            logicalTypes.add(FieldUtils.fieldType2logicalType(fieldSchema.getType(),
+                    !notNullColSet.contains(fieldSchema.getName()))
+            );
         }
 
         RowType rowType = RowType.of(logicalTypes.toArray(new LogicalType[0]), fieldNames.toArray(new String[0]));
         logger.info("Converted RowType: {}", rowType);
         return rowType;
+    }
+
+    /**
+     * get a set filled with notnull-able field
+     *
+     * @param databaseName
+     * @param tableName
+     * @return
+     * @throws TException
+     */
+    public Set<String> getNotNullColSet(String databaseName, String tableName) throws TException {
+        Table table = getClient().getTable(databaseName, tableName);
+        Map<String, Boolean> field2nullable = getFieldNullabilityFromMetaStore(table);
+        return field2nullable.entrySet().stream()
+                .filter(entry -> !entry.getValue())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -286,7 +316,6 @@ public class HiveSchemaUtils implements AutoCloseable {
             }
         }
     }
-
 
     @Override
     public void close() {

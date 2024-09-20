@@ -82,8 +82,4 @@ public class BusiDetail {
             .is_valid(1)
             .build();
   }
-
-  public static void main(String[] args) {
-    System.out.println(randomGen());
-  }
 }

@@ -9,15 +9,27 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.*;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,169 +46,200 @@ import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
  * @Desc :
  */
 
-public class DeserializedSchema implements KafkaRecordDeserializationSchema<Row> {
+public class DeserializedSchema implements KafkaRecordDeserializationSchema<RowData> {
 
-  private final Map<String, String> paramMap;
-  private final String[] fieldNames;
-  private final TypeInformation<?>[] fieldTypes;
-  private final Map<String, String> colWithRef;
-  private final TypeInformation<Row> flinkTypeInformation;
-  private Set<String> notNullColSet;
-  private String database;
-  private String table;
+    private static final Logger logger = LoggerFactory.getLogger(DeserializedSchema.class);
 
-
-  public DeserializedSchema(
-          Map<String, String> paramMap
-  ) throws TException {
-    this.paramMap = paramMap;
-    if (this.paramMap.containsKey("source-database")) {
-      database = this.paramMap.get("source-database");
-      System.out.println("kafka canal database: " + database);
-    }
-    if (this.paramMap.containsKey("source-table")) {
-      table = this.paramMap.get("source-table");
-      System.out.println("kafka canal table: " + table);
-    }
-    HiveSchemaUtils schemaUtil = HiveSchemaUtils.getInstance(
-            paramMap
-    );
-    flinkTypeInformation = schemaUtil.toFlinkTypeInformation(
-            paramMap.get(HIVE_CATALOG_NS_NAME),
-            paramMap.get(HIVE_CATALOG_TBL_NAME)
-    );
-    fieldNames = ((RowTypeInfo) flinkTypeInformation).getFieldNames();
-    fieldTypes = ((RowTypeInfo) flinkTypeInformation).getFieldTypes();
-    schemaUtil.close();
-    colWithRef = ParamUtils.getColWithRef(paramMap);
-    List<String> notNullableCols = ParamUtils.getNotNullableCols(paramMap);
-    notNullColSet = new HashSet<>();
-    notNullColSet.addAll(notNullableCols);
-  }
-
-  private static final long serialVersionUID = 1L;
-
-  private final ObjectMapper objectMapper = new ObjectMapper();
-
-  @Override
-  public TypeInformation<Row> getProducedType() {
-
-    // 解析定义好的类型
-    return flinkTypeInformation;
-  }
+    private final Map<String, String> paramMap;
+    private final Map<String, String> colWithRef;
+    private final RowType rowType;
+    private final Set<String> notNullColSet;
+    private final Set<String> dateFieldSet;
+    private String database;
+    private String table;
 
 
-  @Override
-  public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<Row> out) throws IOException {
-    byte[] value = record.value();
-    if (value == null) {
-      return;
-    }
-
-    // 解析 Canal-JSON 消息
-    String jsonString = new String(value, StandardCharsets.UTF_8);
-    JsonNode jsonNode = objectMapper.readTree(jsonString);
-    // 判断当前消息是否属于相应的数据
-    if (this.database == null || this.table == null) {
-      throw new IllegalArgumentException("canal-kafka source database or table not config");
-    }
-
-    // 忽略非当前表的cdc数据
-    if (!jsonNode.get("database").asText().equals(database) || !jsonNode.get("table").asText().equals(table)) {
-      return;
-    }
-    // 忽略查询的内容
-    if (jsonNode.get("type").asText().trim().equalsIgnoreCase("query")) {
-//      System.out.println("not hit");
-      return;
-    }
-    System.out.println("数据被命中");
-    if (jsonNode.get("isDdl").asText().trim().equalsIgnoreCase("true")) {
-      // TODO 判断此处的内容如何处理
-    }
-
-
-    setupRow(
-            out,
-            jsonNode,
-            record.offset(),
-            record.partition(),
-            paramMap
-    );
-  }
-
-
-  public void setupRow(Collector<Row> out,
-                       JsonNode jsonNode,
-                       Long offset,
-                       int partitionIdx,
-                       Map<String, String> paramMap) {
-    // 获得相应的数据类型
-    String type = jsonNode.get("type").asText();
-    boolean isCdcDelete = "DELETE".equalsIgnoreCase(type);
-
-    // 获取 data 数组
-    JsonNode dataArray = jsonNode.get("data");
-
-    if (dataArray != null && dataArray.isArray()) {
-      for (JsonNode dataNode : dataArray) {
-        Row row = new Row(fieldNames.length);
-        for (int i = 0; i < fieldNames.length; i++) {
-          String fieldName = fieldNames[i];
-          TypeInformation typeInformation = fieldTypes[i];
-          String ref = colWithRef.getOrDefault(fieldName, "data." + fieldName);
-          String key = ref.substring(5);
-          if (dataNode.has(key)) {
-            JsonNode node = dataNode.get(key);
-            if (node.asText().trim().equalsIgnoreCase("null")) {
-              if (notNullColSet.contains(fieldName)) {
-                throw new IllegalArgumentException(fieldName + " should not be null, " + jsonNode);
-              } else {
-                row.setField(i, null);
-              }
-            } else if (typeInformation.equals(Types.STRING)) {
-              row.setField(i, node.asText());
-            } else if (typeInformation.equals(Types.LONG)) {
-              row.setField(i, node.asLong());
-            } else if (typeInformation.equals(Types.INT)) {
-              row.setField(i, node.asInt());
-            } else if (typeInformation.equals(Types.BOOLEAN)) {
-              row.setField(i, node.asBoolean());
-            } else if (typeInformation.equals(Types.BIG_DEC)) {
-              row.setField(i, new BigDecimal(node.asText()));
-            } else if (typeInformation.equals(Types.LOCAL_DATE_TIME)) {
-              row.setField(i, DateTimeUtils.parseStringToLocalDateTime(node.asText()));
-            } else if (typeInformation.equals(Types.INSTANT)) {
-              row.setField(i, DateTimeUtils.parseStringToLocalDateTime(node.asText())
-//                      .atZone(
-//                      ZoneId.of("Asia/Shanghai")
-//              ).toInstant())
-                      .toInstant(ZoneOffset.UTC))
-              ;
-            } else if (typeInformation.equals(Types.LOCAL_DATE)) {
-              row.setField(i, DateTimeUtils.parseString2localDate(node.asText()));
-            }
-          } else if (fieldName.trim().equalsIgnoreCase("is_cdc_delete")) {
-            row.setField(i, isCdcDelete);
-          } else if (fieldName.trim().equalsIgnoreCase("offset")) {
-            row.setField(i, offset);
-          } else if (fieldName.trim().equalsIgnoreCase("partition_idx")) {
-            row.setField(i, partitionIdx);
-          } else if (fieldName.trim().equalsIgnoreCase("ts")) {
-            row.setField(i, jsonNode.get("ts").asLong());
-          } else if (fieldName.trim().equalsIgnoreCase("es")) {
-            row.setField(i, jsonNode.get("es").asLong());
-          } else if (fieldName.trim().equalsIgnoreCase("CommitTs") || fieldName.trim().equalsIgnoreCase("commit_ts")) {
-            row.setField(i, jsonNode.get("CommitTs").asLong());
-          } else if (!notNullColSet.contains(fieldName)) {
-            row.setField(i, null);
-          } else {
-            throw new IllegalArgumentException("field " + fieldName + ", json not got it with ref " + key + ", and it's not nullable");
-          }
+    public DeserializedSchema(
+            Map<String, String> paramMap
+    ) throws TException {
+        this.paramMap = paramMap;
+        if (this.paramMap.containsKey("source-database")) {
+            database = this.paramMap.get("source-database");
+            logger.info("kafka canal database: {}", database);
         }
-        out.collect(row);
-      }
+        if (this.paramMap.containsKey("source-table")) {
+            table = this.paramMap.get("source-table");
+            logger.info("kafka canal table: {}", table);
+        }
+        HiveSchemaUtils schemaUtil = HiveSchemaUtils.getInstance(
+                paramMap
+        );
+        colWithRef = ParamUtils.getColWithRef(paramMap);
+        rowType = schemaUtil.toFlinkRowType(
+                paramMap.get(HIVE_CATALOG_NS_NAME),
+                paramMap.get(HIVE_CATALOG_TBL_NAME)
+        );
+        notNullColSet = schemaUtil.getNotNullColSet(
+                paramMap.get(HIVE_CATALOG_NS_NAME),
+                paramMap.get(HIVE_CATALOG_TBL_NAME)
+        );
+
+        dateFieldSet = schemaUtil.getDateTypeFieldSet(
+                paramMap.get(HIVE_CATALOG_NS_NAME),
+                paramMap.get(HIVE_CATALOG_TBL_NAME)
+        );
     }
-  }
+
+    private static final long serialVersionUID = 1L;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Override
+    public TypeInformation<RowData> getProducedType() {
+
+        // 解析定义好的类型
+        return InternalTypeInfo.of(rowType);
+    }
+
+
+    @Override
+    public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> out) throws IOException {
+        byte[] value = record.value();
+        if (value == null) {
+            return;
+        }
+
+        // 解析 Canal-JSON 消息
+        String jsonString = new String(value, StandardCharsets.UTF_8);
+        JsonNode jsonNode = objectMapper.readTree(jsonString);
+        // 判断当前消息是否属于相应的数据
+        if (this.database == null || this.table == null) {
+            throw new IllegalArgumentException("canal-kafka source database or table not config");
+        }
+
+        // 忽略非当前表的cdc数据
+        if (!jsonNode.get("database").asText().equals(database) || !jsonNode.get("table").asText().equals(table)) {
+            return;
+        }
+        // 忽略查询的内容
+        if (jsonNode.get("type").asText().trim().equalsIgnoreCase("query")) {
+            return;
+        }
+        logger.info("数据被命中");
+        if (jsonNode.get("isDdl").asText().trim().equalsIgnoreCase("true")) {
+            // TODO 判断此处的内容如何处理
+        }
+
+
+        setupRow(
+                out,
+                jsonNode,
+                record.offset(),
+                record.partition()
+        );
+    }
+
+
+    public void setupRow(Collector<RowData> out,
+                         JsonNode jsonNode,
+                         Long offset,
+                         int partitionIdx) {
+        // 获得相应的数据类型
+        String type = jsonNode.get("type").asText();
+        boolean isCdcDelete = "DELETE".equalsIgnoreCase(type);
+
+        // 获取 data 数组
+        JsonNode dataArray = jsonNode.get("data");
+
+        if (dataArray != null && dataArray.isArray()) {
+            for (JsonNode dataNode : dataArray) {
+                GenericRowData rowData = new GenericRowData(rowType.getFieldCount());
+                List<String> fieldNames = rowType.getFieldNames();
+                List<RowType.RowField> fields = rowType.getFields();
+                for (int i = 0; i < rowType.getFieldCount(); i++) {
+                    // logger.info("parsing {} with type {}, and the root type is {}"
+                    // , fieldNames.get(i), fields.get(i).getType().toString(),
+                    // fields.get(i).getType().getTypeRoot());
+                    String fieldName = fieldNames.get(i);
+                    RowType.RowField rowField = fields.get(i);
+                    LogicalType fieldType = rowField.getType();
+                    String ref = colWithRef.getOrDefault(fieldName, "data." + fieldName);
+                    String key = ref.substring(5);
+                    if (dataNode.has(key)) {
+                        JsonNode node = dataNode.get(key);
+                        if (node.asText().trim().equalsIgnoreCase("null")) {
+                            if (notNullColSet.contains(fieldName)) {
+                                throw new IllegalArgumentException(fieldName + " should not be null, " + jsonNode);
+                            } else {
+                                rowData.setField(i, null);
+                            }
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.VARCHAR)) {
+                            rowData.setField(i, StringData.fromString(node.asText()));
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.BIGINT)) {
+                            rowData.setField(i, node.asLong());
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.INTEGER)) {
+                            if (dateFieldSet != null && !dateFieldSet.isEmpty() && dateFieldSet.contains(fieldName)) {
+                                LocalDate localDate = DateTimeUtils.parseString2localDate(node.asText());
+                                int daysSinceEpoch = (int) ChronoUnit.DAYS.between(LocalDate.ofEpochDay(0), localDate);
+                                rowData.setField(i, daysSinceEpoch);
+                            } else {
+                                rowData.setField(i, node.asInt());
+                            }
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.BOOLEAN)) {
+                            rowData.setField(i, node.asBoolean());
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.DECIMAL)) {
+                            DecimalType decimalType = (DecimalType) fieldType;
+                            rowData.setField(i,
+                                    DecimalData.fromBigDecimal(
+                                            new BigDecimal(node.asText()),
+                                            decimalType.getPrecision(),
+                                            decimalType.getScale()
+                                    ));
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+                            rowData.setField(i, TimestampData.fromLocalDateTime(DateTimeUtils.parseStringToLocalDateTime(node.asText())));
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+                            rowData.setField(i, TimestampData.fromInstant(DateTimeUtils.parseStringToLocalDateTime(node.asText())
+//                                                          .atZone(
+//                                                          ZoneId.of("Asia/Shanghai")
+//                                                  ).toInstant())
+                                            .toInstant(ZoneOffset.UTC))
+                            )
+                            ;
+                        } else if (fieldType.getTypeRoot().equals(LogicalTypeRoot.DATE)) {
+                            LocalDate localDate = DateTimeUtils.parseString2localDate(node.asText());
+                            int daysSinceEpoch = (int) ChronoUnit.DAYS.between(LocalDate.ofEpochDay(0), localDate);
+                            rowData.setField(i, daysSinceEpoch);
+                        }
+                    } else if (fieldName.trim().equalsIgnoreCase("is_cdc_delete")) {
+                        rowData.setField(i, isCdcDelete);
+                    } else if (fieldName.trim().equalsIgnoreCase("offset")) {
+                        rowData.setField(i, offset);
+                    } else if (fieldName.trim().equalsIgnoreCase("partition_idx")) {
+                        rowData.setField(i, partitionIdx);
+                    } else if (fieldName.trim().equalsIgnoreCase("ts")) {
+                        rowData.setField(i, jsonNode.get("ts").asLong());
+                    } else if (fieldName.trim().equalsIgnoreCase("es")) {
+                        rowData.setField(i, jsonNode.get("es").asLong());
+                    } else if (fieldName.trim().equalsIgnoreCase("CommitTs") || fieldName.trim().equalsIgnoreCase("commit_ts")) {
+                        rowData.setField(i, jsonNode.get("CommitTs").asLong());
+                    } else if (fieldName.trim().equalsIgnoreCase("ingestion_tm")) {
+                        rowData.setField(i, TimestampData.fromInstant(DateTimeUtils.parseStringToLocalDateTime(
+                                                DateTimeUtils.getBeijingTimeNow()
+                                        )
+//                                                          .atZone(
+//                                                          ZoneId.of("Asia/Shanghai")
+//                                                  ).toInstant())
+                                        .toInstant(ZoneOffset.UTC))
+                        );
+                    } else if (!notNullColSet.contains(fieldName)) {
+                        rowData.setField(i, null);
+                    } else {
+                        throw new IllegalArgumentException("field " + fieldName + ", json not got it with ref " + key + ", and it's not nullable");
+                    }
+                }
+                out.collect(rowData);
+            }
+        }
+    }
 
 }
