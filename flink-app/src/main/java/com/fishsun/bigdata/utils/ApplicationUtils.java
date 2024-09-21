@@ -1,5 +1,7 @@
 package com.fishsun.bigdata.utils;
 
+import com.fishsun.bigdata.function.DeduplicateProcessFunction;
+import com.fishsun.bigdata.function.RowDataKeySelector;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -14,6 +16,7 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -86,14 +89,28 @@ public class ApplicationUtils {
         logger.info("table schema: {}", tableSchema);
         logger.info("table loader: {}", tableLoader);
         String hiveTblName = String.format("%s-%s", paramMap.get(HIVE_CATALOG_NS_NAME), paramMap.get(HIVE_CATALOG_TBL_NAME));
+        DataStream<RowData> dataStream = kafkaStream;
         List<String> uniqueCols = new LinkedList<>();
         if (tableSchema.getPrimaryKey().isPresent()) {
             UniqueConstraint uniqueConstraint = tableSchema.getPrimaryKey().get();
             uniqueCols = uniqueConstraint.getColumns();
+            // using state to avoid shuffle time
+            Map<String, Integer> fieldNameIndexMap = new HashMap<>();
+            // KeyBy 分组，基于指定的 uniqueCols 字段
+            dataStream = kafkaStream.keyBy(new RowDataKeySelector(uniqueCols, fieldNameIndexMap))
+                    // 自定义 ProcessFunction，处理状态和数据
+                    .process(new DeduplicateProcessFunction(ParamUtils.getOrderField(paramMap)
+                            , fieldNameIndexMap
+                            , ParamUtils.getHoldingSec(paramMap)
+                            ))
+                    .setParallelism(1)
+                    .setMaxParallelism(1)
+                    .uid(hiveTblName + "-key-state")
+                    .name(hiveTblName + "-key-state");
         }
 
         // 6. 将数据写入 Iceberg 表
-        FlinkSink.Builder builder = FlinkSink.forRowData(kafkaStream)
+        FlinkSink.Builder builder = FlinkSink.forRowData(dataStream)
                 .tableLoader(tableLoader)
                 .tableSchema(tableSchema);
         Map<String, String> sinkConf = ParamUtils.getIcebergSinkParams(paramMap);

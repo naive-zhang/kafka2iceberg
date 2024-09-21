@@ -48,6 +48,10 @@ public class ParamUtils {
 
     public static final String ICEBERG_HIVE_CATALOG_VALUE = "hive";
 
+    public static final String ORDER_FIELD = "state.order.by";
+
+    public static final String HOLDING_SEC = "state.ttl.seconds";
+
 
     /**
      * 解析传入的参数
@@ -344,5 +348,13 @@ public class ParamUtils {
                         x -> x.getKey().substring("sink.".length()),
                         x -> x.getValue()
                 ));
+    }
+
+    public static long getHoldingSec(Map<String, String> paramMap) {
+        return Long.valueOf(paramMap.getOrDefault(HOLDING_SEC, "300"));
+    }
+
+    public static String getOrderField(Map<String, String> paramMap) {
+        return paramMap.getOrDefault(ORDER_FIELD, "ingestion_tm");
     }
 }
