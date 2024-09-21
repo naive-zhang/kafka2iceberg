@@ -334,4 +334,15 @@ public class ParamUtils {
                         x -> Long.valueOf(x.getValue().substring(0, x.getValue().length() - 1))
                 ));
     }
+
+    public static Map<String, String> getIcebergSinkParams(Map<String, String> paramMap) {
+        return paramMap.entrySet()
+                .stream().filter(
+                        x -> x.getKey().startsWith("sink.")
+                )
+                .collect(Collectors.toMap(
+                        x -> x.getKey().substring("sink.".length()),
+                        x -> x.getValue()
+                ));
+    }
 }

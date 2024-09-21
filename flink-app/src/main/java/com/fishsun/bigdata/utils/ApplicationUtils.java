@@ -93,17 +93,22 @@ public class ApplicationUtils {
         }
 
         // 6. 将数据写入 Iceberg 表
+        FlinkSink.Builder builder = FlinkSink.forRowData(kafkaStream)
+                .tableLoader(tableLoader)
+                .tableSchema(tableSchema);
+        Map<String, String> sinkConf = ParamUtils.getIcebergSinkParams(paramMap);
+        for (Map.Entry<String, String> kvEntry : sinkConf.entrySet()) {
+            builder.set(kvEntry.getKey(), kvEntry.getValue());
+        }
         if (uniqueCols.isEmpty()) {
             logger.info("iceberg sink will be OK without primary keys using append stream");
-            FlinkSink.forRowData(kafkaStream)
-                    .tableLoader(tableLoader)
-                    .tableSchema(tableSchema)
-                    .overwrite(false)
+            builder.overwrite(false)
                     .upsert(false)  // 开启 UPSERT 模式
                     .append()
                     .uid(hiveTblName + "-iceberg-sink")
                     .name(hiveTblName + "-iceberg-sink")
                     .setParallelism(1);
+
         } else {
             logger.info("iceberg sink will be OK with primary keys using upsert stream");
             logger.info("got {} primary keys", uniqueCols.size());
@@ -115,11 +120,7 @@ public class ApplicationUtils {
             Table table = tableLoader.loadTable();
             logger.info("table has been loaded successfully");
             logger.info(table.name());
-            FlinkSink
-                    .forRowData(kafkaStream)
-                    .tableLoader(tableLoader)
-                    .tableSchema(tableSchema)
-                    .overwrite(false)
+            builder.overwrite(false)
                     .upsert(true)  // 开启 UPSERT 模式
                     .equalityFieldColumns(uniqueCols)
                     .append()
