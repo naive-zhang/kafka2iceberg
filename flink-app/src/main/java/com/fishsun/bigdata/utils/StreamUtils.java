@@ -13,18 +13,14 @@ import java.util.Map;
  * @Desc :
  */
 public class StreamUtils {
-  public static StreamExecutionEnvironment getStreamEnv(Map<String, String> paramMap) {
-    if (paramMap.getOrDefault("local", "false")
-            .toLowerCase()
-            .trim()
-            .equals("false")) {
-      return StreamExecutionEnvironment.getExecutionEnvironment();
+    public static StreamExecutionEnvironment getStreamEnv(boolean isLocalMode, int restPort) {
+        if (!isLocalMode) {
+            return StreamExecutionEnvironment.getExecutionEnvironment();
+        }
+        org.apache.flink.configuration.Configuration conf = new org.apache.flink.configuration.Configuration();
+        conf.set(RestOptions.PORT, restPort);
+        return StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(
+                conf
+        );
     }
-    org.apache.flink.configuration.Configuration conf = new org.apache.flink.configuration.Configuration();
-    conf.set(RestOptions.PORT, Integer.valueOf(paramMap.getOrDefault("rest.port",
-            "9999")));
-    return StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(
-            conf
-    );
-  }
 }

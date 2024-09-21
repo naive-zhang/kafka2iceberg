@@ -8,6 +8,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.fishsun.bigdata.utils.FieldUtils.fieldType2dataType;
 import static com.fishsun.bigdata.utils.FieldUtils.fieldType2typeInformation;
@@ -312,4 +314,24 @@ public class ParamUtils {
     }
 
 
+    public static Map<TopicPartition, Long> getTopicPartitions(Map<String, String> paramMap) {
+        return paramMap.entrySet().stream()
+                .filter(x -> x.getKey().startsWith("offset."))
+                .filter(x -> x.getKey().split("\\.").length == 3)
+                .filter(x -> {
+                    String val = x.getValue().toLowerCase();
+                    return val.endsWith("l") && StringUtils.isValidIntegerWithRegex(val.substring(0, val.length() - 1));
+                })
+                .collect(Collectors.toMap(
+                        x -> {
+                            String key = x.getKey();
+                            String[] tmp = key.split("\\.");
+                            return new TopicPartition(
+                                    tmp[1],
+                                    Integer.parseInt(tmp[2])
+                            );
+                        },
+                        x -> Long.valueOf(x.getValue().substring(0, x.getValue().length() - 1))
+                ));
+    }
 }

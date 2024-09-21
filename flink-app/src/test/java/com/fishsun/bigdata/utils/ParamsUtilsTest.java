@@ -1,5 +1,6 @@
 package com.fishsun.bigdata.utils;
 
+import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -64,5 +65,19 @@ public class ParamsUtilsTest {
     void testGetColWithRef() {
         Map<String, String> colWithRef = ParamUtils.getColWithRef(paramMap);
         Assertions.assertTrue(colWithRef.size() == 1);
+    }
+
+
+    @Test
+    public void testTopicPartitionOffset() {
+        Map<TopicPartition, Long> topicPartitions = ParamUtils.getTopicPartitions(paramMap);
+        Assertions.assertTrue(topicPartitions != null && topicPartitions.isEmpty());
+        paramMap.put("offset.examples.0", "3244dv3L");
+        topicPartitions = ParamUtils.getTopicPartitions(paramMap);
+        Assertions.assertTrue(topicPartitions != null && topicPartitions.isEmpty());
+        paramMap.put("offset.examples.0", "324343L");
+        topicPartitions = ParamUtils.getTopicPartitions(paramMap);
+        Assertions.assertTrue(topicPartitions.size() == 1);
+        logger.info("topic partitions {}", topicPartitions);
     }
 }
