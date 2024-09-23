@@ -2,6 +2,7 @@ package com.fishsun.bigdata;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fishsun.bigdata.utils.ApplicationUtils;
 import com.fishsun.bigdata.utils.DateTimeUtils;
 import com.fishsun.bigdata.utils.HiveSchemaUtils;
 import com.fishsun.bigdata.utils.ParamUtils;
@@ -34,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_NS_NAME;
 import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
@@ -125,9 +127,14 @@ public class DeserializedSchema implements KafkaRecordDeserializationSchema<RowD
         if (jsonNode.get("type").asText().trim().equalsIgnoreCase("query")) {
             return;
         }
-        logger.info("数据被命中");
         if (jsonNode.get("isDdl").asText().trim().equalsIgnoreCase("true")) {
-            // TODO 判断此处的内容如何处理
+            try {
+                ApplicationUtils.stop();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
 

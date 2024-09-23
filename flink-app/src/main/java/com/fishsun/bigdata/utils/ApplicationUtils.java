@@ -2,13 +2,18 @@ package com.fishsun.bigdata.utils;
 
 import com.fishsun.bigdata.function.DeduplicateProcessFunction;
 import com.fishsun.bigdata.function.RowDataKeySelector;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.flink.TableLoader;
 import org.apache.iceberg.flink.sink.FlinkSink;
@@ -20,6 +25,9 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_NS_NAME;
 import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
@@ -34,6 +42,7 @@ import static com.fishsun.bigdata.utils.IcebergUtils.getTableLoader;
  */
 public class ApplicationUtils {
     private static final Logger logger = LoggerFactory.getLogger(ApplicationUtils.class);
+    public static JobClient jobClient;
 
     /**
      * 构建kafkaSource
@@ -83,7 +92,7 @@ public class ApplicationUtils {
         return tableLoader;
     }
 
-    public static void setupSink(DataStream<RowData> kafkaStream, TableSchema tableSchema, TableLoader tableLoader, Map<String, String> paramMap) {
+    public static void setupSink(DataStream<RowData> kafkaStream, TableSchema tableSchema, TableLoader tableLoader, Map<String, String> paramMap) throws TException {
         logger.info("start setting up sink");
         logger.info("kafka source: {}", kafkaStream);
         logger.info("table schema: {}", tableSchema);
@@ -96,13 +105,40 @@ public class ApplicationUtils {
             uniqueCols = uniqueConstraint.getColumns();
             // using state to avoid shuffle time
             Map<String, Integer> fieldNameIndexMap = new HashMap<>();
+            String[] fieldNames = tableSchema.getFieldNames();
+            for (int i = 0; i < fieldNames.length; i++) {
+                fieldNameIndexMap.put(fieldNames[i], i);
+            }
+            RowType rowType
+                    = HiveSchemaUtils.getInstance(paramMap).toFlinkRowType(
+                    paramMap.get(HIVE_CATALOG_NS_NAME),
+                    paramMap.get(HIVE_CATALOG_TBL_NAME)
+            );
+            Map<String, LogicalType> fileName2type = new HashMap<>();
+            List<String> names = rowType.getFieldNames();
+            List<RowType.RowField> fields = rowType.getFields();
+            for (int i = 0; i < rowType.getFieldCount(); i++) {
+                // logger.info("parsing {} with type {}, and the root type is {}"
+                // , fieldNames.get(i), fields.get(i).getType().toString(),
+                // fields.get(i).getType().getTypeRoot());
+                String fieldName = names.get(i);
+                RowType.RowField rowField = fields.get(i);
+                LogicalType fieldType = rowField.getType();
+                fileName2type.put(fieldName, fieldType);
+            }
+            logger.info("expand fieldNameIndexMap");
+            for (Map.Entry<String, Integer> field2idx : fieldNameIndexMap.entrySet()) {
+                logger.info("field {} at index {}", field2idx.getKey(), field2idx.getValue());
+            }
             // KeyBy 分组，基于指定的 uniqueCols 字段
-            dataStream = kafkaStream.keyBy(new RowDataKeySelector(uniqueCols, fieldNameIndexMap))
+            dataStream = kafkaStream.keyBy(new RowDataKeySelector(uniqueCols.stream().filter(x -> !x.trim().toLowerCase().endsWith("dt"))
+                            .collect(Collectors.toList()), fieldNameIndexMap,
+                            fileName2type))
                     // 自定义 ProcessFunction，处理状态和数据
                     .process(new DeduplicateProcessFunction(ParamUtils.getOrderField(paramMap)
                             , fieldNameIndexMap
                             , ParamUtils.getHoldingSec(paramMap)
-                            ))
+                    ))
                     .setParallelism(1)
                     .setMaxParallelism(1)
                     .uid(hiveTblName + "-key-state")
@@ -182,6 +218,14 @@ public class ApplicationUtils {
             logger.error("print trace ");
             e.printStackTrace();
             throw e;
+        }
+    }
+
+    public static void stop() throws ExecutionException, InterruptedException {
+        // TODO 判断此处的内容如何处理
+        if (jobClient != null) {
+            CompletableFuture<Void> cancel = jobClient.cancel();
+            cancel.get();
         }
     }
 }

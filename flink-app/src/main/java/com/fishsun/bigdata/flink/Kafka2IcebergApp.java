@@ -5,6 +5,7 @@ import com.fishsun.bigdata.utils.ApplicationUtils;
 import com.fishsun.bigdata.utils.FlinkTaskUtils;
 import com.fishsun.bigdata.utils.StreamUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.iceberg.flink.util.FlinkPackage;
 import org.apache.thrift.TException;
@@ -15,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.fishsun.bigdata.utils.ParamUtils.enhanceConfig;
-import static com.fishsun.bigdata.utils.ParamUtils.parseConfig;
 
 /**
  * Created by IntelliJ IDEA.
@@ -69,7 +69,9 @@ public class Kafka2IcebergApp {
             }
         });
         // 启动 Flink 作业
-        env.execute("Flink Kafka to Iceberg with Additional Fields");
+        JobClient jobClient = env.executeAsync("Flink Kafka to Iceberg with Additional Fields");
+        ApplicationUtils.jobClient = jobClient;
+        Thread.sleep(Long.MAX_VALUE);
     }
 
 }
