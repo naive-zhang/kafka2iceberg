@@ -126,7 +126,7 @@ public class SparkSQLServer {
 
                 // 设置 Job Group
                 String groupId = (jobGroup != null && !jobGroup.isEmpty()) ? jobGroup : UUID.randomUUID().toString();
-                spark.sparkContext().setJobGroup(groupId, "User Submitted SQL Query", true);
+                spark.sparkContext().setJobGroup(groupId, sql, true);
 
                 // 执行SQL语句
                 Dataset<Row> result = spark.sql(sql);
