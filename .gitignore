@@ -39,3 +39,6 @@ build/
 .DS_Store
 
 .idea
+
+spark-warehouse
+metastore_db
