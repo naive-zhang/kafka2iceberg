@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spark SQL Executor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        textarea { width: 100%; height: 150px; }
+        button { padding: 10px 20px; font-size: 16px; }
+        #output { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+    </style>
+</head>
+<body>
+<h1>Spark SQL Executor</h1>
+<p>在下面的文本框中输入你的SQL语句，并点击“执行”按钮来运行SQL。</p>
+<form id="sql-form">
+    <textarea id="sql-input" placeholder="请输入SQL语句..."></textarea><br>
+    <button type="button" onclick="executeSQL()">执行</button>
+</form>
+
+<div id="output">
+    <h3>结果输出：</h3>
+    <pre id="result"></pre>
+</div>
+
+<script>
+    function executeSQL() {
+        const sql = document.getElementById("sql-input").value;
+        const resultElement = document.getElementById("result");
+
+        // 将SQL提交给后端
+        fetch("/executeSql", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ sql })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultElement.textContent = JSON.stringify(data.result, null, 2);
+                } else {
+                    resultElement.textContent = "执行失败: " + data.error;
+                }
+            })
+            .catch(error => {
+                resultElement.textContent = "请求错误: " + error.message;
+            });
+    }
+</script>
+</body>
+</html>
