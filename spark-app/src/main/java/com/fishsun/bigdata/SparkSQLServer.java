@@ -1,11 +1,16 @@
 package com.fishsun.bigdata;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.plans.logical.*;
 import org.apache.spark.sql.execution.datasources.LogicalRelation;
 import org.apache.spark.sql.execution.LogicalRDD;
+import org.sparkproject.jetty.servlet.DefaultServlet;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 import scala.runtime.AbstractPartialFunction;
 import org.sparkproject.jetty.server.Server;
 import org.sparkproject.jetty.servlet.ServletContextHandler;
@@ -15,42 +20,134 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.File;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class SparkSQLServer {
 
     private static SparkSession spark;
 
+    // 读取 `classpath` 中的所有 XML 文件，并解析为配置项
+    private static Map<String, String> loadConfigFromClasspath() {
+        Map<String, String> configMap = new HashMap<>();
+        try {
+            // 获取 `classpath` 中所有的 XML 文件
+            ClassLoader classLoader = SparkSQLServer.class.getClassLoader();
+            URL resource = classLoader.getResource("");
+            if (resource != null) {
+                File directory = new File(resource.toURI());
+                if (directory.exists()) {
+                    System.out.println(directory.getAbsolutePath());
+                    // 递归读取所有 XML 文件
+                    loadAllXmlFiles(directory, configMap);
+                }
+            }
+        } catch (URISyntaxException e) {
+            System.err.println("Error loading XML files: " + e.getMessage());
+        }
+        return configMap;
+    }
+
+    // 递归加载目录中的所有 XML 文件
+    private static void loadAllXmlFiles(File directory, Map<String, String> configMap) {
+        if (directory == null || !directory.exists()) return;
+        File[] files = directory.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                // 如果是目录，递归处理
+                loadAllXmlFiles(file, configMap);
+            } else if (file.getName().endsWith(".xml")) {
+                // 如果是 XML 文件，解析文件并提取配置项
+                parseXmlFile(file, configMap);
+            }
+        }
+    }
+
+    // 解析单个 XML 文件，并提取 `<property>` 中的 `name` 和 `value`
+    private static void parseXmlFile(File file, Map<String, String> configMap) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(file);
+            doc.getDocumentElement().normalize();
+
+            // 读取所有的 `<property>` 节点
+            NodeList propertyNodes = doc.getElementsByTagName("property");
+            for (int i = 0; i < propertyNodes.getLength(); i++) {
+                org.w3c.dom.Node node = propertyNodes.item(i);
+                if (node.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                    org.w3c.dom.Element element = (org.w3c.dom.Element) node;
+
+                    // 提取 `name` 和 `value` 属性
+                    String name = element.getElementsByTagName("name").item(0).getTextContent();
+                    String value = element.getElementsByTagName("value").item(0).getTextContent();
+
+                    // 添加到配置项中
+                    configMap.put(name, value);
+                }
+            }
+            System.out.println("Loaded config from: " + file.getAbsolutePath());
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            System.err.println("Error parsing XML file " + file.getAbsolutePath() + ": " + e.getMessage());
+        }
+    }
+
+    private static SparkConf loadConfFromClassloader() {
+        Map<String, String> conf = loadConfigFromClasspath();
+        SparkConf sparkConf = new SparkConf();
+        for (Map.Entry<String, String> kvEntry : conf.entrySet()) {
+            System.out.println("load key: " + kvEntry.getKey() + " value: " + kvEntry.getValue());
+            sparkConf.set(kvEntry.getKey(), kvEntry.getValue());
+        }
+        return sparkConf;
+    }
+
     public static void main(String[] args) throws Exception {
-        // 创建 SparkSession，使用本地模式
-        spark = SparkSession.builder()
-                .appName("Spark SQL Web Executor")
-                .master("local[*]")
-                .config("hive.metastore.uris", "thrift://localhost:9083")
-                .config("hive.metastore.warehouse.dir", "hdfs://master:9000/user/hive/warehouse")
-                .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
-                .config("spark.sql.catalog.spark_catalog.type", "hive")
-                .config("spark.sql.catalog.spark_catalog.uri", "thrift://localhost:9083")
-                .config("spark.sql.catalog.spark_catalog.warehouse", "hdfs://master:9000/user/hive/warehouse")
-                .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-                .enableHiveSupport()
-                .getOrCreate();
+        SparkConf sparkConf = loadConfFromClassloader();
+        if (!Arrays.asList(args)
+                .stream().filter(x->x.trim().equalsIgnoreCase("local"))
+                .collect(Collectors.toList())
+                .isEmpty()) {
+            spark = SparkSession.builder()
+                    .appName("Spark SQL Web Executor")
+                    .master("local[2]")
+                    .config(sparkConf)
+                    .enableHiveSupport()
+                    .getOrCreate();
+        } else {
+            spark = SparkSession.builder()
+                    .appName("Spark SQL Web Executor")
+                    .config(sparkConf)
+                    .enableHiveSupport()
+                    .getOrCreate();
+        }
 
         // 设置 Jetty 服务器
-        Server server = new Server(8080);
+        int serverPort = sparkConf.getInt("server.port", 8080);
+        Server server = new Server(serverPort);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
-        server.setHandler(context);
+        // 配置静态资源的路径（resourceBase）
+        context.setResourceBase(SparkSQLServer.class.getClassLoader().getResource("").toExternalForm());
+
+        // 增加一个 DefaultServlet 处理静态资源
+        context.addServlet(new ServletHolder("default", new DefaultServlet()), "/static/*");
 
         // 映射路径到相应的Servlet
         context.addServlet(new ServletHolder(new SQLInputServlet()), "/");
         context.addServlet(new ServletHolder(new SQLExecuteServlet()), "/execute");
         context.addServlet(new ServletHolder(new SQLCancelServlet()), "/cancel");
-
-        System.out.println("启动 Spark SQL Web 服务器, 请访问: http://localhost:8080");
+        server.setHandler(context);
+        System.out.println("启动 Spark SQL Web 服务器, 请访问: http://localhost:" + serverPort);
         server.start();
         server.join();
     }
@@ -65,8 +162,8 @@ public class SparkSQLServer {
                     "<html>" +
                             "<head>" +
                             "<title>Spark SQL Executor</title>" +
-                            "<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>" +
-                            "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>" +
+                            "<link href='static/bootstrap/css/bootstrap.min.css' rel='stylesheet'>" +
+                            "<script src='static/bootstrap/js/bootstrap.bundle.min.js'></script>" +
                             "<style>" +
                             "body, html { height: 100%; margin: 0; }" +
                             ".container { height: 100vh; display: flex; flex-direction: column; padding: 20px; }" +
