@@ -30,9 +30,9 @@ import static com.fishsun.bigdata.utils.IcebergUtils.HIVE_CATALOG_TBL_NAME;
 public class HiveSchemaUtilsTest {
 
     private static final Logger logger = LoggerFactory.getLogger(HiveSchemaUtilsTest.class);
-    private static final String DATABASE_NAME = "test";
-    private static final String TABLE_NAME = "t_busi_detail_flink_2";
-    private static final String argString = "iceberg.catalog.type=hive iceberg.uri=thrift://localhost:9083 hive.catalog.name=hive_iceberg hive.namespace.name=test hive.table.name=t_busi_detail_flink_2 bootstrap.servers=kafka:9092 topics=example group.id=flink-group source-database=test source-table=t_busi_detail fields.bid.is_primary_key=true fields.dt.is_primary_key=true fields.dt.ref=data.create_time";
+    private static final String DATABASE_NAME = "ane_temp";
+    private static final String TABLE_NAME = "tx_waybill_info_iceberg";
+    private static final String argString = "iceberg.catalog.type=hive iceberg.uri=thrift://bdtnode04:9083 hive.catalog.name=hive_iceberg hive.namespace.name=ane_temp hive.table.name=tx_waybill_info_iceberg bootstrap.servers=kafka:9092 topics=example group.id=flink-group source-database=test source-table=t_busi_detail fields.bid.is_primary_key=true fields.dt.is_primary_key=true fields.dt.ref=data.create_time";
     private static String[] args;
     private static Map<String, String> paramMap;
 
@@ -54,6 +54,8 @@ public class HiveSchemaUtilsTest {
             for (FieldSchema field : schema) {
                 logger.info("Column Name: {}, type: {}, comment: {}",
                         field.getName(), field.getType(), field.getComment());
+                System.out.printf("Column Name: %s, type: %s, comment: %s\n",
+                        field.getName(), field.getType(), field.getComment());
                 logger.info("------------------------");
             }
         } catch (Exception e) {
@@ -69,6 +71,7 @@ public class HiveSchemaUtilsTest {
                             .getTableParameters(DATABASE_NAME, TABLE_NAME);
             for (Map.Entry<String, String> kvSet : tableParameters.entrySet()) {
                 logger.info("{}  : {}", kvSet.getKey(), kvSet.getValue());
+                System.out.printf("%s: %s", kvSet.getKey(), kvSet.getValue());
             }
         } catch (TException e) {
             throw new RuntimeException(e);
@@ -82,6 +85,7 @@ public class HiveSchemaUtilsTest {
                         DATABASE_NAME, TABLE_NAME
                 );
         logger.info(resolvedSchema.toString());
+        System.out.println(resolvedSchema.toString());
     }
 
 
@@ -92,6 +96,7 @@ public class HiveSchemaUtilsTest {
                         DATABASE_NAME, TABLE_NAME
                 );
         logger.info(tableSchema.toString());
+        System.out.println(tableSchema.toString());
     }
 
     @Test
@@ -101,6 +106,7 @@ public class HiveSchemaUtilsTest {
                         DATABASE_NAME, TABLE_NAME
                 );
         logger.info(flinkTypeInformation.toString());
+        System.out.println(flinkTypeInformation.toString());
     }
 
     @Test

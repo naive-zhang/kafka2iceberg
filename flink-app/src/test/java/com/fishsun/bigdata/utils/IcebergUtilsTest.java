@@ -17,17 +17,19 @@ import java.util.Map;
  * @Desc :
  */
 public class IcebergUtilsTest {
-    private static final Logger logger = LoggerFactory.getLogger(IcebergUtilsTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(IcebergUtilsTest.class);
 
-    @Test
-    public void testHiveLoader() throws InterruptedException {
-        Configuration hadoopConf = new Configuration();
-        hadoopConf.set("default.FS", "hdfs://master1:9000");
-        Map<String, String> icebergProps = new HashMap<>();
-        icebergProps.put("uri", "thrift://hive:9083");
-        icebergProps.put("warehouse", "hdfs://master1:9000/user/hive/warehouse");
-        icebergProps.put("catalog-type", "hive");
-        TableLoader tableLoader = IcebergUtils.hiveLoader("iceberg_hive", icebergProps, hadoopConf, "test", "t_busi_detail_flink_2");
-        logger.info(tableLoader.toString());
-    }
+  @Test
+  public void testHiveLoader() throws InterruptedException {
+    Configuration hadoopConf = new Configuration();
+    hadoopConf.set("default.FS", "hdfs://mycluster");
+    Map<String, String> icebergProps = new HashMap<>();
+    icebergProps.put("uri", "thrift://bdtnode04:9083");
+    icebergProps.put("warehouse", "hdfs://mycluster/user/hive/warehouse");
+    icebergProps.put("catalog-type", "hive");
+    TableLoader tableLoader = IcebergUtils.hiveLoader("iceberg_hive",
+            icebergProps, hadoopConf, "ane_temp",
+            "tx_waybill_info_iceberg");
+    logger.info(tableLoader.toString());
+  }
 }

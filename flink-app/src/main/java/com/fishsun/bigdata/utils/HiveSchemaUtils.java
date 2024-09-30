@@ -11,6 +11,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -46,7 +47,11 @@ public class HiveSchemaUtils implements AutoCloseable {
 
     private IMetaStoreClient getClient() throws MetaException {
         if (client == null) {
-            this.client = new HiveMetaStoreClient(conf);
+            HiveConf hiveConf = new HiveConf();
+            conf.forEach(
+                    x-> hiveConf.set(x.getKey(), x.getValue())
+            );
+            this.client = new HiveMetaStoreClient(hiveConf);
         }
         return client;
     }
