@@ -4,6 +4,7 @@ import com.fishsun.bigdata.servlet.ReverseProxyServlet;
 import com.fishsun.bigdata.servlet.SQLCancelServlet;
 import com.fishsun.bigdata.servlet.SQLExecuteServlet;
 import com.fishsun.bigdata.servlet.SQLInputServlet;
+import com.fishsun.bigdata.servlet.ExecuteShellServlet;  // 新增导入
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
 import org.eclipse.jetty.server.Server;
@@ -60,6 +61,7 @@ public class SparkSQLServer {
     context.addServlet(new ServletHolder(new SQLInputServlet()), "/");
     context.addServlet(new ServletHolder(new SQLExecuteServlet(spark)), "/execute");
     context.addServlet(new ServletHolder(new SQLCancelServlet(spark)), "/cancel");
+    context.addServlet(new ServletHolder(new ExecuteShellServlet()), "/execute-shell");  // 新增
 
     // 获取 Spark Web UI 的地址
     Option<String> sparkWebUrlOption = spark.sparkContext().uiWebUrl();
